@@ -41,8 +41,13 @@ with hero_col:
         </div>
     </div>
     """, unsafe_allow_html=True)
-    if st.button("🚀  Start Analysis →", type="primary", key="hero_cta"):
-        st.switch_page("pages/1_Upload_Data.py")
+    cta_a, cta_b = st.columns([1, 1])
+    with cta_a:
+        if st.button("🚀  Start Analysis →", type="primary", key="hero_cta"):
+            st.switch_page("pages/1_Upload_Data.py")
+    with cta_b:
+        if st.button("📘  Open User Guide", key="hero_guide"):
+            st.switch_page("pages/0_User_Guide.py")
 
 with img_col:
     # Free microscopy image — Unsplash (public domain license)

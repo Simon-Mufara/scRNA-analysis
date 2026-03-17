@@ -1,95 +1,82 @@
 # scRNA-analysis
 
-Clinical and research-focused Streamlit platform for end-to-end single-cell RNA-seq analysis.
+[![Live App](https://img.shields.io/badge/Live%20App-Open%20on%20Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://scrna-analysis.streamlit.app)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Domain](https://img.shields.io/badge/Domain-scRNA--seq%20Analytics-0A9396)](https://scrna-analysis.streamlit.app)
 
-## Live App
+Clinical and research-focused web application for end-to-end single-cell RNA-seq analysis, built to convert complex molecular data into interpretable biological and translational insights.
 
-Target Streamlit app URL (repo-name style):
+## Live Platform
 
-**https://scrna-analysis.streamlit.app**
+- Application: https://scrna-analysis.streamlit.app
+- Repository: Simon-Mufara/scRNA-analysis
+- Current status: deployed and active
 
-Note: Streamlit subdomains are lowercase, so `scRNA-analysis` becomes `scrna-analysis`.
+## What Problem This App Solves
 
-## Features
+Single-cell datasets are information-rich but often difficult to analyze consistently across teams. Many projects struggle with fragmented workflows, limited reproducibility, and reporting formats that are hard to communicate to non-computational stakeholders.
 
-- Upload and process large `.h5ad` / `.loom` datasets
-- Quality control (cell/gene filters, mitochondrial content)
-- Clustering and UMAP visualization
-- Cell type annotation (marker scoring, CellTypist, manual mapping)
-- Differential expression analysis
-- Pathway enrichment analysis
-- Clinical report generation (PDF)
+scRNA-analysis solves this by providing one guided platform that standardizes the full workflow from upload to report generation.
 
-## Project Structure
+## What The App Does
 
-```text
-app.py
-config.py
-requirements.txt
-.streamlit/config.toml
-pages/
-utils/
-models/
-data/
-```
+The platform delivers a complete 8-stage analysis experience:
 
-## Local Run
+1. Data upload and validation for .h5ad and .loom files.
+2. Quality control and filtering.
+3. Clustering and UMAP visualization.
+4. Cell type annotation.
+5. Gene-level expression exploration.
+6. Differential expression analysis.
+7. Pathway enrichment analysis.
+8. Clinical-style report generation with PDF export.
 
-### 1) Create environment and install dependencies
+## Key Capabilities
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
-```
+- Handles large single-cell datasets with a guided interface.
+- Tracks analysis progression across stages.
+- Generates publication-ready visual and tabular outputs.
+- Supports marker-informed and model-assisted annotation workflows.
+- Produces structured PDF reports for meetings and collaborations.
 
-### 2) Start Streamlit
+## Outputs Available To Users
 
-```bash
-streamlit run app.py
-```
+- QC summaries and filtering diagnostics.
+- UMAP and cluster-level visualizations.
+- Cell type composition outputs.
+- Differential expression marker tables.
+- Pathway enrichment summaries.
+- Clinical summary report (PDF).
 
-Default local URL:
+## Who This Is For
 
-- http://localhost:8501
+- Faculty research groups.
+- Clinical and translational research teams.
+- Postgraduate students and trainees.
+- Bioinformatics-supported wet-lab projects.
 
-## Deploy on Streamlit Community Cloud
+## User Guide (PDF)
 
-### App configuration
+- In app: Open User Guide from the home page, then click Download User Guide (PDF).
+- Direct file in repository: [docs/SingleCell_Explorer_User_Guide.pdf](docs/SingleCell_Explorer_User_Guide.pdf)
 
-- Repository: `Simon-Mufara/scRNA-analysis`
-- Branch: `main`
-- Main file path: `app.py`
-- App URL/subdomain: `scrna-analysis` (closest valid match to repo name)
+## Partnership Value
 
-### Steps
+- Standardized and reproducible analysis practice across projects.
+- Faster transition from raw data to interpretable results.
+- Better communication of findings to multidisciplinary audiences.
+- Training-friendly environment for onboarding new users.
 
-1. Go to Streamlit Community Cloud and sign in with GitHub.
-2. Click **Create app**.
-3. Select repo `Simon-Mufara/scRNA-analysis`.
-4. Set **Main file path** to `app.py`.
-5. Set custom app URL to `scrna-analysis`.
-6. Click **Deploy**.
-
-When deployment completes, your app link will be:
-
-**https://scrna-analysis.streamlit.app**
-
-## Recommended Production Notes
-
-- Keep `.streamlit/config.toml` tracked for consistent server/theme behavior.
-- For very large datasets, use server-side paths when possible.
-- Ensure enough RAM and temporary disk space for large file uploads.
-
-## Tech Stack
+## Technology
 
 - Streamlit
-- Scanpy / AnnData
+- Scanpy and AnnData
 - Plotly
 - CellTypist
 - GSEApy
+- FPDF2
 
 ## License
 
-Add your preferred license (MIT, Apache-2.0, etc.) in a `LICENSE` file.
+MIT License. See [LICENSE](LICENSE).
