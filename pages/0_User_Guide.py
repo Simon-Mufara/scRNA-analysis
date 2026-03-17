@@ -18,31 +18,28 @@ def build_user_guide_pdf() -> Optional[bytes]:
     except ImportError:
         return None
 
-    font_regular = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-    font_bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    font_family = "Helvetica"
 
     class GuidePDF(FPDF):
         def header(self):
             self.set_fill_color(13, 17, 23)
             self.rect(0, 0, 210, 24, "F")
-            self.set_font("DV", "B", 11)
+            self.set_font(font_family, "B", 11)
             self.set_text_color(0, 212, 255)
             self.set_xy(10, 7)
             self.cell(0, 6, f"{APP_TITLE} - User Guide")
-            self.set_font("DV", "", 8)
+            self.set_font(font_family, "", 8)
             self.set_text_color(139, 148, 158)
             self.set_xy(10, 14)
             self.cell(0, 5, f"Version {APP_VERSION} | Generated {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
 
         def footer(self):
             self.set_y(-12)
-            self.set_font("DV", "", 7)
+            self.set_font(font_family, "", 7)
             self.set_text_color(100, 110, 120)
             self.cell(0, 5, f"Page {self.page_no()} | SingleCell Clinical and Research Explorer", align="C")
 
     pdf = GuidePDF(orientation="P", unit="mm", format="A4")
-    pdf.add_font("DV", "", font_regular)
-    pdf.add_font("DV", "B", font_bold)
     pdf.set_auto_page_break(auto=True, margin=16)
     pdf.add_page()
     pdf.set_margins(14, 28, 14)
@@ -50,13 +47,13 @@ def build_user_guide_pdf() -> Optional[bytes]:
     def heading(text: str):
         pdf.set_fill_color(20, 24, 32)
         pdf.set_text_color(0, 212, 255)
-        pdf.set_font("DV", "B", 11)
+        pdf.set_font(font_family, "B", 11)
         pdf.cell(0, 8, text, ln=True, fill=True)
         pdf.ln(1)
 
     def body(text: str):
         pdf.set_text_color(22, 27, 34)
-        pdf.set_font("DV", "", 10)
+        pdf.set_font(font_family, "", 10)
         pdf.multi_cell(0, 6, text)
         pdf.ln(1)
 

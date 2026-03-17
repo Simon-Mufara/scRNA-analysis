@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import os
 from datetime import datetime
 import io
 import plotly.express as px
@@ -289,6 +290,7 @@ def build_pdf() -> bytes:
         return None
     FONT_R = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
     FONT_B = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    font_family = "Helvetica"
 
     class Report(FPDF):
         def header(self):
@@ -310,8 +312,10 @@ def build_pdf() -> bytes:
             self.cell(0, 5, f"FOR RESEARCH USE ONLY | Page {self.page_no()} | SC-CRE v1.0.0", align="C")
 
     pdf = Report(orientation="P", unit="mm", format="A4")
-    pdf.add_font("DV", "",  FONT_R)
-    pdf.add_font("DV", "B", FONT_B)
+    if os.path.exists(FONT_R) and os.path.exists(FONT_B):
+        pdf.add_font("DV", "", FONT_R)
+        pdf.add_font("DV", "B", FONT_B)
+        font_family = "DV"
     pdf.set_auto_page_break(auto=True, margin=18)
     pdf.add_page()
     pdf.set_margins(14, 32, 14)
@@ -319,13 +323,13 @@ def build_pdf() -> bytes:
     def heading(text, rgb=(0, 212, 255)):
         pdf.set_fill_color(20, 24, 32)
         pdf.set_draw_color(*rgb)
-        pdf.set_font("DV", "B", 10)
+        pdf.set_font(font_family, "B", 10)
         pdf.set_text_color(*rgb)
         pdf.cell(0, 7, text, border="B", fill=True, ln=True)
         pdf.ln(2)
 
     def body(text, size=9):
-        pdf.set_font("DV", "", size)
+        pdf.set_font(font_family, "", size)
         pdf.set_text_color(200, 210, 225)
         pdf.multi_cell(0, 5, text)
         pdf.ln(1)
@@ -334,11 +338,11 @@ def build_pdf() -> bytes:
     pdf.set_fill_color(16, 20, 28)
     pdf.set_draw_color(0, 212, 255)
     pdf.rect(14, 33, 182, 24, "FD")
-    pdf.set_font("DV", "B", 14)
+    pdf.set_font(font_family, "B", 14)
     pdf.set_text_color(0, 212, 255)
     pdf.set_xy(18, 36)
     pdf.cell(0, 8, "Clinical Summary Report", ln=True)
-    pdf.set_font("DV", "", 8.5)
+    pdf.set_font(font_family, "", 8.5)
     pdf.set_text_color(175, 182, 192)
     pdf.set_x(18)
     pdf.cell(0, 5, f"Project: {project or 'N/A'}   |   Diagnosis: {diagnosis or 'N/A'}", ln=True)
@@ -349,11 +353,11 @@ def build_pdf() -> bytes:
     col_w = 44
     for lbl in ["Cells Analysed", "Genes Detected", "Clusters", "Cell Types"]:
         pdf.set_fill_color(22, 27, 34); pdf.set_draw_color(40, 50, 60)
-        pdf.set_font("DV", "", 7); pdf.set_text_color(100, 115, 128)
+        pdf.set_font(font_family, "", 7); pdf.set_text_color(100, 115, 128)
         pdf.cell(col_w - 1, 5, lbl.upper(), border=1, fill=True, ln=False, align="C")
     pdf.ln(5)
     for val in [f"{n_cells:,}", f"{n_genes:,}", str(n_clusters), str(n_cell_types)]:
-        pdf.set_font("DV", "B", 12); pdf.set_text_color(0, 212, 255)
+        pdf.set_font(font_family, "B", 12); pdf.set_text_color(0, 212, 255)
         pdf.cell(col_w - 1, 8, val, border=1, fill=True, ln=False, align="C")
     pdf.ln(10)
     if median_genes_per_cell:
@@ -364,7 +368,7 @@ def build_pdf() -> bytes:
     if not ct_counts.empty:
         for ct, count in ct_counts.items():
             pct = count / n_cells * 100
-            pdf.set_font("DV", "", 9); pdf.set_text_color(210, 218, 230)
+            pdf.set_font(font_family, "", 9); pdf.set_text_color(210, 218, 230)
             pdf.cell(70, 5, f"  {ct}", ln=False)
             pdf.cell(22, 5, f"{count:,}", ln=False, align="R")
             bar_w = max(1, min(55, int(pct * 0.75)))
@@ -392,7 +396,7 @@ def build_pdf() -> bytes:
         for _, row in pathway_df.head(8).iterrows():
             adj_p = row.get("Adjusted P-value", "")
             p_str = f"{float(adj_p):.2e}" if adj_p != "" else "N/A"
-            pdf.set_font("DV", "", 9); pdf.set_text_color(200, 210, 225)
+            pdf.set_font(font_family, "", 9); pdf.set_text_color(200, 210, 225)
             pdf.cell(135, 5, f"  {str(row['Term'])[:60]}", ln=False)
             pdf.set_text_color(81, 207, 102)
             pdf.cell(0, 5, f"adj.p={p_str}", ln=True, align="R")
@@ -407,7 +411,7 @@ def build_pdf() -> bytes:
     pdf.set_fill_color(30, 15, 15); pdf.set_draw_color(200, 60, 60)
     pdf.rect(14, pdf.get_y() + 2, 182, 11, "FD")
     pdf.set_xy(17, pdf.get_y() + 4)
-    pdf.set_font("DV", "B", 7.5); pdf.set_text_color(235, 90, 90)
+    pdf.set_font(font_family, "B", 7.5); pdf.set_text_color(235, 90, 90)
     pdf.cell(0, 4, "FOR RESEARCH USE ONLY -- NOT INTENDED FOR CLINICAL DIAGNOSIS OR TREATMENT DECISIONS")
 
     return bytes(pdf.output())
