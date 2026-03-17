@@ -1,0 +1,27 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Build and packaging
+build/
+dist/
+*.egg-info/
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+
+# Logs and temp
+*.log
+*.tmp
+*.swp
+
+# Optional local data (keep demo data tracked explicitly)
+# data/*.h5ad

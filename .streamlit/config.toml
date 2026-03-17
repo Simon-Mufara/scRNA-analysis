@@ -1,0 +1,17 @@
+[server]
+maxUploadSize = 102400
+enableCORS = false
+enableXsrfProtection = false
+headless = true
+address = "0.0.0.0"
+port = 8501
+
+[theme]
+primaryColor     = "#00D4FF"
+backgroundColor  = "#0E1117"
+secondaryBackgroundColor = "#161B22"
+textColor        = "#E6EDF3"
+font             = "sans serif"
+
+[browser]
+gatherUsageStats = false
