@@ -102,7 +102,12 @@ def build_user_guide_pdf() -> Optional[bytes]:
         "It is not a standalone diagnostic system and should not replace clinical judgment."
     )
 
-    return pdf.output(dest="S").encode("latin-1", "replace")
+    raw_pdf = pdf.output(dest="S")
+    if isinstance(raw_pdf, str):
+        return raw_pdf.encode("latin-1", "replace")
+    if isinstance(raw_pdf, (bytes, bytearray)):
+        return bytes(raw_pdf)
+    return None
 
 
 page_header(
