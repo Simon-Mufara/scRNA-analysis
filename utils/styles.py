@@ -1,6 +1,9 @@
 """Shared CSS/styling injected into every page."""
 import streamlit as st
 
+from utils.auth import get_current_user, logout_user, render_login_gate
+from utils.collaboration import add_shared_snapshot, get_team_snapshots, init_collaboration_state, log_private_learning
+
 PLOTLY_TEMPLATE = "plotly_dark"
 
 PALETTE = [
@@ -327,42 +330,62 @@ def inject_global_css():
 
 def render_sidebar():
     """Inject branded sidebar header + pipeline progress — call once per page."""
-    completed = st.session_state.get("pipeline_status", {})
-    pipeline_steps = [
-        ("Upload",           "📂"),
-        ("QC",               "🔬"),
-        ("Clustering",       "📊"),
-        ("Annotation",       "🏷️"),
-        ("Gene Explorer",    "🔍"),
-        ("Diff. Expression", "📈"),
-        ("Pathway",          "🧪"),
-        ("Report",           "📄"),
-    ]
+    render_login_gate()
+    init_collaboration_state()
+    user = get_current_user()
+    try:
+        from utils.backend_db import touch_user_session
 
-    progress_items = ""
-    for step, icon in pipeline_steps:
-        done = completed.get(step) == "done"
-        if done:
-            color = "#51CF66"
-            dot   = "✓"
-            t_style = f"color:{color};font-weight:600;"
-        else:
-            color = "#30363D"
-            dot   = "○"
-            t_style = "color:#6E7681;"
-        progress_items += (
-            f'<div style="display:flex;align-items:center;gap:8px;padding:4px 0;">'
-            f'<span style="color:{color};font-size:0.75rem;width:14px;text-align:center;">{dot}</span>'
-            f'<span style="{t_style}font-size:0.78rem;">{icon} {step}</span>'
-            f'</div>'
-        )
+        touch_user_session(user.get("session_id"))
+    except Exception:
+        pass
+    completed = st.session_state.get("pipeline_status", {})
+    lucide_base = "https://unpkg.com/lucide-static@latest/icons"
+    icon_map = {
+        "upload_file": "upload",
+        "biotech": "microscope",
+        "monitoring": "chart-scatter",
+        "sell": "tags",
+        "search": "search",
+        "query_stats": "line-chart",
+        "route": "route",
+        "description": "file-text",
+        "logo": "dna",
+    }
+    pipeline_steps = [
+        ("Upload",           "upload_file"),
+        ("QC",               "biotech"),
+        ("Clustering",       "monitoring"),
+        ("Annotation",       "sell"),
+        ("Gene Explorer",    "search"),
+        ("Diff. Expression", "query_stats"),
+        ("Pathway",          "route"),
+        ("Report",           "description"),
+    ]
+    done_steps = [step for step, _ in pipeline_steps if completed.get(step) == "done"]
+    total_steps = len(pipeline_steps)
+    progress_pct = int((len(done_steps) / total_steps) * 100)
+    seen_key = "_pipeline_done_steps_seen"
+    if seen_key not in st.session_state:
+        st.session_state[seen_key] = done_steps.copy()
+    else:
+        newly_done = [step for step in done_steps if step not in st.session_state[seen_key]]
+        if newly_done:
+            alert = f"Pipeline update: {', '.join(newly_done)} completed ({progress_pct}%)."
+            if hasattr(st, "toast"):
+                st.toast(alert, icon="✅")
+            else:
+                st.sidebar.success(alert)
+            log_private_learning(user.get("username"), done_steps)
+        st.session_state[seen_key] = done_steps.copy()
 
     sidebar_html = (
         '<div style="padding:16px 14px 0;">'
         '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">'
         '<div style="background:linear-gradient(135deg,rgba(0,212,255,0.15),rgba(123,47,190,0.15));'
         'border:1px solid rgba(0,212,255,0.25);border-radius:10px;width:36px;height:36px;'
-        'display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">🧬</div>'
+        'display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">'
+        f'<img src="{lucide_base}/{icon_map["logo"]}.svg" width="18" height="18" style="filter:invert(68%) sepia(71%) saturate(2964%) hue-rotate(150deg) brightness(100%) contrast(101%);" /></div>'
         '<div>'
         '<div style="color:#E6EDF3;font-weight:700;font-size:0.88rem;letter-spacing:-0.02em;line-height:1.2;">SingleCell Explorer</div>'
         '<div style="color:#6E7681;font-size:0.7rem;">Clinical &amp; Research Platform</div>'
@@ -372,12 +395,94 @@ def render_sidebar():
         '<span style="background:rgba(0,212,255,0.06);color:#6E7681;border:1px solid #21262D;border-radius:20px;padding:2px 8px;font-size:0.67rem;">v1.0.0</span>'
         '</div>'
         '<div style="border-top:1px solid #21262D;padding-top:12px;margin-bottom:4px;">'
-        '<div style="color:#6E7681;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;margin-bottom:6px;">Pipeline Progress</div>'
-        + progress_items +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">'
+        '<div style="color:#6E7681;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;">Pipeline</div>'
+        f'<div style="color:#C9D1D9;font-size:0.74rem;font-weight:600;">{len(done_steps)}/{total_steps}</div>'
+        '</div>'
         '</div></div>'
         '<div style="border-top:1px solid #161B22;margin-top:8px;padding-top:6px;"></div>'
     )
     st.sidebar.markdown(sidebar_html, unsafe_allow_html=True)
+    st.sidebar.progress(progress_pct / 100.0, text=f"Progress {progress_pct}%")
+    with st.sidebar.expander("View pipeline steps", expanded=False):
+        for step, icon_name in pipeline_steps:
+            is_done = completed.get(step) == "done"
+            lucide_name = icon_map.get(icon_name, "circle")
+            st.markdown(
+                f"{'✅' if is_done else '◯'} "
+                f"<img src='{lucide_base}/{lucide_name}.svg' width='14' height='14' "
+                f"style='vertical-align:middle;filter:invert(60%);margin-right:2px;'/> "
+                f"<span style='color:{'#51CF66' if is_done else '#6E7681'}'>{step}</span>",
+                unsafe_allow_html=True,
+            )
+    st.sidebar.markdown(
+        f"<div style='padding:0 14px 8px;color:#6E7681;font-size:0.74rem;'>"
+        f"Signed in as <span style='color:#C9D1D9;font-weight:600;'>{user['username']}</span>"
+        f"{' · ' + user['team'] if user['team'] else ''}<br/>"
+        f"<span style='color:#8B949E;'>"
+        f"{'Demo' if user.get('is_demo') else ('Entra' if user.get('login_mode') == 'Entra' else 'Registered')} account"
+        f"{' · ' + user.get('email') if user.get('email') else ''}"
+        f"</span></div>",
+        unsafe_allow_html=True,
+    )
+    with st.sidebar.expander("Account settings", expanded=False):
+        if st.button("Save login details on this device", key="save_login_details_btn", use_container_width=True):
+            try:
+                st.query_params["remember_user"] = user["username"] or ""
+                st.query_params["remember_mode"] = "Team" if user.get("team") else "Individual"
+                if user.get("team"):
+                    st.query_params["remember_team"] = user["team"]
+                elif st.query_params.get("remember_team"):
+                    del st.query_params["remember_team"]
+                st.success("Login details saved.")
+            except Exception:
+                st.error("Could not save login details.")
+        if user.get("is_demo"):
+            st.caption("Demo accounts cannot be deleted.")
+        elif user.get("login_mode") == "Entra":
+            st.caption("This account is managed by Microsoft Entra ID.")
+        else:
+            with st.form("delete_account_form", clear_on_submit=True):
+                confirm_user = st.text_input("Confirm username")
+                confirm_password = st.text_input("Confirm password", type="password")
+                delete_submit = st.form_submit_button(
+                    "Delete my account",
+                    type="secondary",
+                    use_container_width=True,
+                )
+            if delete_submit:
+                if (confirm_user or "").strip().lower() != (user.get("username") or "").strip().lower():
+                    st.error("Username confirmation does not match.")
+                elif not confirm_password:
+                    st.error("Password confirmation is required.")
+                else:
+                    try:
+                        from utils.backend_db import delete_user_account
+
+                        ok, err = delete_user_account(user.get("username"), confirm_password)
+                    except Exception:
+                        ok, err = False, "Account deletion failed."
+                    if ok:
+                        st.success("Your account has been deleted.")
+                        logout_user()
+                        st.switch_page("app.py")
+                    else:
+                        st.error(err or "Account deletion failed.")
+    if user.get("team"):
+        with st.sidebar.expander("Collaboration Workspace", expanded=False):
+            st.text_input("Workspace Name", key="workspace_name")
+            st.text_input("Your Name", key="workspace_owner")
+            shared_count = len(get_team_snapshots(user["team"]))
+            st.caption(f"Shared snapshots: {shared_count}")
+            if st.button("Share current analysis snapshot", key="share_snapshot", use_container_width=True):
+                if st.session_state.get("adata") is None:
+                    st.warning("Load and analyze a dataset before sharing a snapshot.")
+                else:
+                    snapshot = add_shared_snapshot()
+                    st.success(f"Snapshot shared at {snapshot['timestamp']}.")
+    if st.sidebar.button("Logout", key="logout_btn", use_container_width=True):
+        logout_user()
+        st.switch_page("app.py")
 
 
 def page_header(icon: str, title: str, subtitle: str = ""):
@@ -430,15 +535,16 @@ def badge(text: str, color: str = "#00D4FF"):
 
 # Ordered page manifest — (file path relative to app root, label, icon)
 PAGES = [
-    ("app",                              "Home",                  "🏠"),
-    ("pages/1_Upload_Data",              "Upload Data",           "📂"),
-    ("pages/2_Quality_Control",          "Quality Control",       "🔬"),
-    ("pages/3_Clustering_UMAP",          "Clustering & UMAP",     "📊"),
-    ("pages/4_Cell_Type_Annotation",     "Cell Type Annotation",  "🏷️"),
-    ("pages/5_Gene_Explorer",            "Gene Explorer",         "🔍"),
-    ("pages/6_Differential_Expression",  "Diff. Expression",      "📈"),
-    ("pages/7_Pathway_Analysis",         "Pathway Analysis",      "🧪"),
-    ("pages/8_Clinical_Report",          "Clinical Report",       "📄"),
+    ("app",                              "Home",                  ":material/home:"),
+    ("pages/1_Upload_Data",              "Upload Data",           ":material/upload_file:"),
+    ("pages/2_Quality_Control",          "Quality Control",       ":material/biotech:"),
+    ("pages/3_Clustering_UMAP",          "Clustering & UMAP",     ":material/monitoring:"),
+    ("pages/4_Cell_Type_Annotation",     "Cell Type Annotation",  ":material/sell:"),
+    ("pages/5_Gene_Explorer",            "Gene Explorer",         ":material/search:"),
+    ("pages/6_Differential_Expression",  "Diff. Expression",      ":material/query_stats:"),
+    ("pages/7_Pathway_Analysis",         "Pathway Analysis",      ":material/route:"),
+    ("pages/8_Clinical_Report",          "Clinical Report",       ":material/description:"),
+    ("pages/9_Team_Dashboard",           "Team Dashboard",        ":material/groups:"),
 ]
 
 
@@ -484,4 +590,3 @@ def render_nav_buttons(current_idx: int):
         with col_next:
             if st.button(f"{next_icon} {next_label} →", key="nav_next", type="primary", use_container_width=True):
                 st.switch_page(f"{next_path}.py")
-
