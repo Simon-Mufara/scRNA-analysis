@@ -7,6 +7,7 @@ import tempfile
 import h5py
 
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons
+from utils.auth import get_current_user
 
 # ── Register missing null-encoding reader (for files with None values in uns) ──
 try:
@@ -112,6 +113,8 @@ def _ensure_disk_space(required_bytes: int, dest_dir: str, overhead_ratio: float
 st.set_page_config(page_title="Upload Data", layout="wide")
 inject_global_css()
 render_sidebar()
+current_user = get_current_user()
+is_demo_user = bool(current_user.get("is_demo"))
 
 # ── Visual banner ──────────────────────────────────────────────────────────────
 banner_col, img_col = st.columns([2, 1])
@@ -134,6 +137,8 @@ tab_upload, tab_path, tab_example = st.tabs([
 
 # ──────────────────────────────────────────────────────────────────────────────
 with tab_upload:
+    if is_demo_user:
+        st.warning("Demo profile: custom file upload is disabled. Create an account to upload your own datasets.")
     st.markdown("""
     <div style="background:linear-gradient(135deg,rgba(0,212,255,0.05),rgba(0,212,255,0.01));
     border:1px dashed rgba(0,212,255,0.4);border-radius:14px;padding:20px;margin-bottom:16px;">
@@ -163,7 +168,8 @@ with tab_upload:
     file = st.file_uploader(
         "Drag & drop or browse for your .h5ad file",
         type=["h5ad", "loom"],
-        help="Max 100 GB. Large files may take a while to upload — keep this tab open."
+        help="Max 100 GB. Large files may take a while to upload — keep this tab open.",
+        disabled=is_demo_user,
     )
 
     if file:
@@ -216,6 +222,8 @@ with tab_upload:
 
 # ──────────────────────────────────────────────────────────────────────────────
 with tab_path:
+    if is_demo_user:
+        st.warning("Demo profile: server-path loading is disabled. Create an account to use your own files.")
     st.markdown("""
     <div style="background:rgba(255,183,77,0.08);border:1px solid rgba(255,183,77,0.4);
     border-radius:10px;padding:14px 18px;margin-bottom:12px;">
@@ -236,7 +244,7 @@ with tab_path:
     col_fmt, col_btn = st.columns([2, 1])
     fmt = col_fmt.selectbox("Format", [".h5ad (AnnData)", ".loom", ".csv (cell×gene)", ".mtx (10x)"])
 
-    if col_btn.button("▶ Load from Path", type="primary", key="load_path"):
+    if col_btn.button("▶ Load from Path", type="primary", key="load_path", disabled=is_demo_user):
         if not file_path:
             st.warning("Enter a file path.")
         elif not os.path.isabs(file_path):

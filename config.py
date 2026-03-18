@@ -1,5 +1,5 @@
 APP_TITLE = "SingleCell Clinical & Research Explorer"
-APP_ICON = "🧬"
+APP_ICON = ":material/biotech:"
 APP_VERSION = "1.0.0"
 
 # Pipeline step definitions (order matters)

@@ -77,6 +77,27 @@ The platform delivers a complete 8-stage analysis experience:
 - GSEApy
 - FPDF2
 
+## Security and Authentication
+
+- Production authenticator: Microsoft Entra ID (OIDC + MFA).
+- Configure these environment variables before launch:
+  - `ENTRA_TENANT_ID`
+  - `ENTRA_CLIENT_ID`
+  - `ENTRA_CLIENT_SECRET`
+  - `ENTRA_REDIRECT_URI`
+  - `ENTRA_ADMIN_GROUP_ID` (optional, for organization admin role)
+  - `ENTRA_TEAM_GROUP_MAP` (optional JSON map of group-id to team name)
+- Configure SMTP for professional account verification and password reset emails:
+  - `SMTP_HOST`
+  - `SMTP_PORT` (e.g., `587`)
+  - `SMTP_USERNAME`
+  - `SMTP_PASSWORD`
+  - `SMTP_FROM_EMAIL`
+  - `SMTP_USE_SSL` (`true` or `false`)
+  - `APP_PUBLIC_URL` (optional; used to embed verify/reset links)
+- Local demo login remains available for development/testing only.
+- Demo users are restricted to the embedded PBMC example dataset; custom uploads require a created account or Entra sign-in.
+
 ## License
 
 MIT License. See [LICENSE](LICENSE).
