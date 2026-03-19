@@ -8,6 +8,14 @@ def _cfg(key: str, default: str = ""):
     if env_val:
         return env_val
     try:
+        import streamlit as st
+
+        secrets_val = str(st.secrets.get(key, "")).strip()
+        if secrets_val:
+            return secrets_val
+    except Exception:
+        pass
+    try:
         from utils.backend_db import get_system_setting
 
         return get_system_setting(f"mail.{key.lower()}", default)
