@@ -156,11 +156,8 @@ with tab_upload:
     border-radius:10px;padding:12px 16px;margin-bottom:12px;">
     <b style="color:#FF6B6B;">⚠️ 400 Error?</b>
     <span style="color:#C9D1D9;font-size:0.9rem;">
-    This means Streamlit is still running with the old file size limit.
-    <b>Restart Streamlit</b> in your terminal to apply the 100 GB limit:<br>
-    <code style="background:#161B22;padding:2px 8px;border-radius:4px;color:#00D4FF;">
-    cd ~/python_lessons/scRNA_Explorer &amp;&amp; streamlit run app.py
-    </code>
+    This means the app is still running with an old file size limit.
+    Restart the app service so the 100 GB upload limit is applied.
     </span>
     </div>
     """, unsafe_allow_html=True)
@@ -229,7 +226,7 @@ with tab_path:
     border-radius:10px;padding:14px 18px;margin-bottom:12px;">
     <b style="color:#FFB74D;">⚠️ This tab is for server-side files only</b><br>
     <span style="color:#C9D1D9;font-size:0.9rem;">
-    Enter a path that exists <b>on the Linux server</b> (e.g. <code>/users/simon/data/file.h5ad</code>).<br>
+    Enter a path that exists <b>on the Linux server</b> (e.g. <code>/data/file.h5ad</code>).<br>
     <b>If your file is on your Windows/Mac laptop</b> → use the <b>Browser Upload</b> tab instead
     (restart Streamlit first to enable 100 GB uploads).
     </span>
@@ -238,7 +235,7 @@ with tab_path:
 
     file_path = st.text_input(
         "Absolute server path (Linux)",
-        placeholder="/users/simon/data/human_immune_health_atlas_dc.h5ad"
+        placeholder="/data/human_immune_health_atlas.h5ad"
     )
 
     col_fmt, col_btn = st.columns([2, 1])

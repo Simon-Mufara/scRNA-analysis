@@ -8,10 +8,13 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, PALETTE
+from utils.auth import get_current_user
+from utils.collaboration import capture_pipeline_training_record, submit_clinical_report
 
 st.set_page_config(page_title="Clinical Report", layout="wide")
 inject_global_css()
 render_sidebar()
+current_user = get_current_user()
 
 _rpt_col, _rpt_img = st.columns([3, 1])
 with _rpt_col:
@@ -54,6 +57,7 @@ steps_done = {
     "Pathway Analysis": pathway_df is not None and not (pathway_df.empty if hasattr(pathway_df, "empty") else False),
 }
 score = int(sum(steps_done.values()) / len(steps_done) * 100)
+required_steps_complete = all(steps_done.values())
 
 # ── Metric bar ────────────────────────────────────────────────────────────────
 m_cols = st.columns(6)
@@ -173,8 +177,18 @@ def _sec(title, color):
         f'</div>'
     )
 
+theme_mode = st.session_state.get("theme_mode", "Dark")
+is_light = str(theme_mode).lower() == "light"
+report_bg = "#FFFFFF" if is_light else "#0D1117"
+report_border = "#D9E2EC" if is_light else "#21262D"
+primary_text = "#0F172A" if is_light else "#E6EDF3"
+muted_text = "#475569" if is_light else "#8B949E"
+section_border = "#CBD5E1" if is_light else "#21262D"
+table_text = "#0F172A" if is_light else "#C9D1D9"
+section_chip_text = "#0F172A" if is_light else "#C9D1D9"
+
 report_html = (
-    '<div style="background:#0D1117;border:1px solid #21262D;border-radius:16px;padding:28px 32px;font-family:Inter,sans-serif;">'
+    f'<div style="background:{report_bg};border:1px solid {report_border};border-radius:16px;padding:28px 32px;font-family:Inter,sans-serif;">'
 
     # Header
     '<div style="border-bottom:2px solid rgba(0,212,255,0.25);padding-bottom:16px;margin-bottom:22px;">'
@@ -182,9 +196,9 @@ report_html = (
     '<div>'
     '<div style="color:#00D4FF;font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;">SingleCell Clinical &amp; Research Explorer SC-CRE v1.0</div>'
     '<div style="color:#E6EDF3;font-size:1.45rem;font-weight:800;letter-spacing:-0.03em;margin:0 0 4px;">Clinical Summary Report</div>'
-    f'<div style="color:#8B949E;font-size:0.82rem;">Project: <b style="color:#C9D1D9;">{project or "N/A"}</b> &nbsp;|&nbsp; Analyst: <b style="color:#C9D1D9;">{analyst or "N/A"}</b> &nbsp;|&nbsp; Diagnosis: <b style="color:#C9D1D9;">{diagnosis or "N/A"}</b></div>'
+    f'<div style="color:{muted_text};font-size:0.82rem;">Project: <b style="color:{primary_text};">{project or "N/A"}</b> &nbsp;|&nbsp; Analyst: <b style="color:{primary_text};">{analyst or "N/A"}</b> &nbsp;|&nbsp; Diagnosis: <b style="color:{primary_text};">{diagnosis or "N/A"}</b></div>'
     '</div>'
-    f'<div style="text-align:right;"><div style="color:#6E7681;font-size:0.72rem;">Generated</div><div style="color:#C9D1D9;font-size:0.82rem;font-weight:600;">{report_date}</div></div>'
+    f'<div style="text-align:right;"><div style="color:{muted_text};font-size:0.72rem;">Generated</div><div style="color:{primary_text};font-size:0.82rem;font-weight:600;">{report_date}</div></div>'
     '</div></div>'
 
     # Section 1 – Dataset Summary
@@ -193,7 +207,7 @@ report_html = (
     + "".join(
         f'<div style="background:rgba({c},0.07);border:1px solid rgba({c},0.18);border-radius:10px;padding:10px 16px;min-width:100px;text-align:center;">'
         f'<div style="color:rgb({c});font-size:1.3rem;font-weight:800;">{v}</div>'
-        f'<div style="color:#6E7681;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.08em;margin-top:3px;">{l}</div>'
+        f'<div style="color:{muted_text};font-size:0.68rem;text-transform:uppercase;letter-spacing:0.08em;margin-top:3px;">{l}</div>'
         f'</div>'
         for l, v, c in [
             ("Cells",      f"{n_cells:,}",  "0,212,255"),
@@ -208,7 +222,7 @@ report_html = (
     # Section 2 – Cell Populations
     + '<div style="margin-top:18px;"></div>'
     + _sec("2. Cell Population Overview", "168,85,247")
-    + ('<table style="width:100%;border-collapse:collapse;">' + ct_html + '</table>' if ct_html
+    + ('<table style="width:100%;border-collapse:collapse;color:' + table_text + ';">' + ct_html + '</table>' if ct_html
        else '<p style="color:#6E7681;font-size:0.82rem;">No annotation performed.</p>')
 
     # Section 3 – DE
@@ -221,16 +235,16 @@ report_html = (
     + _sec("4. Pathway Enrichment (Top 8)", "81,207,102")
     + ('<table style="width:100%;border-collapse:collapse;">'
        '<tr>'
-       '<th style="color:#6E7681;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.06em;text-align:left;padding:4px 0;border-bottom:1px solid #21262D;">Pathway Term</th>'
-       '<th style="color:#6E7681;font-size:0.68rem;text-transform:uppercase;text-align:right;padding:4px 10px;border-bottom:1px solid #21262D;">Adj. p-val</th>'
-       '<th style="color:#6E7681;font-size:0.68rem;text-transform:uppercase;text-align:right;padding:4px 0;border-bottom:1px solid #21262D;">Score</th>'
+       f'<th style="color:{muted_text};font-size:0.68rem;text-transform:uppercase;letter-spacing:0.06em;text-align:left;padding:4px 0;border-bottom:1px solid {section_border};">Pathway Term</th>'
+       f'<th style="color:{muted_text};font-size:0.68rem;text-transform:uppercase;text-align:right;padding:4px 10px;border-bottom:1px solid {section_border};">Adj. p-val</th>'
+       f'<th style="color:{muted_text};font-size:0.68rem;text-transform:uppercase;text-align:right;padding:4px 0;border-bottom:1px solid {section_border};">Score</th>'
        '</tr>' + pw_html + '</table>'
        if pw_html else '<p style="color:#6E7681;font-size:0.82rem;">No pathway analysis performed.</p>')
 
     # Section 5 – Interpretation
     + '<div style="margin-top:18px;"></div>'
     + _sec("5. Clinical Interpretation &amp; Recommendations", "116,192,252")
-    + f'<p style="color:#C9D1D9;font-size:0.875rem;line-height:1.7;white-space:pre-wrap;">{notes.strip() if notes.strip() else "No clinical notes provided."}</p>'
+    + f'<p style="color:{section_chip_text};font-size:0.875rem;line-height:1.7;white-space:pre-wrap;">{notes.strip() if notes.strip() else "No clinical notes provided."}</p>'
 
     # Disclaimer
     + '<div style="background:rgba(255,107,107,0.08);border:1px solid rgba(255,107,107,0.3);border-radius:8px;padding:10px 16px;text-align:center;margin-top:16px;">'
@@ -466,4 +480,44 @@ with dl3:
             file_name="cell_type_summary.csv", mime="text/csv", use_container_width=True)
 
 st.caption("For research use only. Not intended for clinical diagnosis.")
+
+st.divider()
+st.markdown("### 🚀 Submit Report")
+with st.form("submit_report_form", clear_on_submit=False):
+    visibility = st.radio("Visibility", ["Team dashboard", "General dashboard"], horizontal=True)
+    submit_report_clicked = st.form_submit_button("Submit report to dashboard", type="primary", use_container_width=True)
+if submit_report_clicked:
+    user_name = current_user.get("username") or "unknown"
+    user_team = current_user.get("team") or "individual"
+    report_payload = {
+        "project": project or "N/A",
+        "analyst": analyst or user_name,
+        "diagnosis": diagnosis or "N/A",
+        "generated_at": report_date,
+        "notes": notes.strip(),
+        "metrics": {
+            "cells": n_cells,
+            "genes": n_genes,
+            "clusters": n_clusters,
+            "cell_types": n_cell_types,
+            "de_genes_count": len(de_genes),
+        },
+        "filters_used": {
+            "de_group": de_group,
+            "de_top_genes": de_genes[:20],
+            "pathway_terms": pathway_df["Term"].head(10).tolist() if pathway_df is not None and not pathway_df.empty and "Term" in pathway_df.columns else [],
+            "pathway_scores": pathway_df["Combined Score"].head(10).tolist() if pathway_df is not None and not pathway_df.empty and "Combined Score" in pathway_df.columns else [],
+        },
+        "required_steps_complete": required_steps_complete,
+        "pipeline_steps": steps_done,
+    }
+    rec = submit_clinical_report(
+        username=user_name,
+        team=user_team,
+        report_payload=report_payload,
+        visibility="public" if visibility == "General dashboard" else "team",
+    )
+    st.success(f"Report submitted ({rec['visibility']}) and audit logged.")
+    capture_pipeline_training_record(user_name, user_team, report_payload)
+
 render_nav_buttons(8)

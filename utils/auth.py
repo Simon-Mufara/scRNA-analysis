@@ -95,7 +95,7 @@ def logout_user():
     st.session_state["auth_email"] = None
     try:
         remember = {}
-        for key in ("remember_user", "remember_mode", "remember_team"):
+        for key in ("remember_user", "remember_mode", "remember_team", "theme_mode"):
             value = st.query_params.get(key)
             if value:
                 remember[key] = value
@@ -179,17 +179,21 @@ def render_login_gate():
     if LOGIN_BG_PATH.exists():
         try:
             bg_b64 = base64.b64encode(LOGIN_BG_PATH.read_bytes()).decode("ascii")
+            theme_mode = st.session_state.get("theme_mode", st.query_params.get("theme_mode", "Dark"))
+            overlay = "rgba(248,250,252,0.45), rgba(248,250,252,0.56)" if str(theme_mode).lower() == "light" else "rgba(7,11,20,0.48), rgba(7,11,20,0.68)"
+            card_bg = "rgba(255,255,255,0.84)" if str(theme_mode).lower() == "light" else "rgba(13,17,23,0.76)"
+            card_border = "rgba(15,23,42,0.20)" if str(theme_mode).lower() == "light" else "rgba(255,255,255,0.12)"
             st.markdown(
                 f"""
                 <style>
                 [data-testid="stAppViewContainer"] {{
                     background:
-                        linear-gradient(135deg, rgba(7,11,20,0.56), rgba(7,11,20,0.78)),
+                        linear-gradient(135deg, {overlay}),
                         url("data:image/svg+xml;base64,{bg_b64}") center center / contain no-repeat fixed !important;
                 }}
                 .block-container {{
-                    background: rgba(13,17,23,0.76);
-                    border: 1px solid rgba(255,255,255,0.12);
+                    background: {card_bg};
+                    border: 1px solid {card_border};
                     border-radius: 16px;
                     padding: 0.65rem 0.75rem 0.85rem 0.75rem !important;
                     max-width: 430px !important;
@@ -410,12 +414,20 @@ def render_login_gate():
             reg_email = st.text_input("Email address", placeholder="name@organization.org")
             reg_password = st.text_input("New password", type="password")
             reg_password_confirm = st.text_input("Confirm password", type="password")
-            in_group = st.radio("Do you belong to a group/team?", ["No", "Yes"], horizontal=True)
+            account_type = st.radio(
+                "Account type",
+                ["Individual", "Team member"],
+                horizontal=True,
+                help="Choose Team member if you belong to a team workspace.",
+            )
+            in_group = "Yes" if account_type == "Team member" else "No"
             reg_team = st.text_input(
                 "Team name",
                 placeholder="e.g. Oncology Team",
-                disabled=in_group != "Yes",
+                disabled=account_type != "Team member",
             )
+            if account_type == "Team member":
+                st.caption("Enter your exact team/workspace name.")
             reg_submit = st.form_submit_button("Create account", type="primary", use_container_width=True)
         if reg_submit:
             if reg_password != reg_password_confirm:

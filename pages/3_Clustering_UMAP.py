@@ -74,9 +74,20 @@ with col_ctrl:
     num_cols = adata.obs.select_dtypes("number").columns.tolist()
     color_options += [c for c in num_cols if c not in color_options]
 
-    color_by = st.selectbox("Color by", color_options)
-    pt_size  = st.slider("Point size", 1, 8, 3)
-    pt_opacity = st.slider("Opacity", 0.1, 1.0, 0.75, step=0.05)
+    st.session_state.setdefault("umap_color_by", color_options[0] if color_options else "leiden")
+    st.session_state.setdefault("umap_pt_size", 3)
+    st.session_state.setdefault("umap_pt_opacity", 0.75)
+    st.session_state.setdefault("umap_apply_nonce", 0)
+    with st.form("umap_view_controls", clear_on_submit=False):
+        color_by = st.selectbox("Color by", color_options, index=color_options.index(st.session_state["umap_color_by"]) if st.session_state["umap_color_by"] in color_options else 0)
+        pt_size = st.slider("Point size", 1, 8, int(st.session_state["umap_pt_size"]))
+        pt_opacity = st.slider("Opacity", 0.1, 1.0, float(st.session_state["umap_pt_opacity"]), step=0.05)
+        apply_view = st.form_submit_button("Apply view", use_container_width=True)
+    if apply_view:
+        st.session_state["umap_color_by"] = color_by
+        st.session_state["umap_pt_size"] = pt_size
+        st.session_state["umap_pt_opacity"] = pt_opacity
+        st.session_state["umap_apply_nonce"] = st.session_state.get("umap_apply_nonce", 0) + 1
 
     # Cluster summary
     st.markdown("---")
@@ -87,9 +98,9 @@ with col_ctrl:
     st.dataframe(cc, use_container_width=True, height=260)
 
 with col_umap:
-    fig = umap_plot(adata, color=color_by,
-                    title=f"UMAP — {color_by}")
-    fig.update_traces(marker=dict(size=pt_size, opacity=pt_opacity))
+    fig = umap_plot(adata, color=st.session_state["umap_color_by"],
+                    title=f"UMAP — {st.session_state['umap_color_by']}")
+    fig.update_traces(marker=dict(size=st.session_state["umap_pt_size"], opacity=st.session_state["umap_pt_opacity"]))
     fig.update_layout(
         paper_bgcolor="#0E1117", plot_bgcolor="#161B22",
         height=560,

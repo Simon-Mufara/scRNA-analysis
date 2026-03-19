@@ -3,9 +3,14 @@ import streamlit as st
 
 from utils.auth import get_current_user, has_role
 from utils.collaboration import (
+    add_plot_annotation,
     build_model_jsonl,
     delete_user_memory,
     get_department_registry,
+    get_latest_shared_analysis_state,
+    get_plot_annotations,
+    get_submitted_clinical_reports,
+    get_team_presence,
     get_team_feed,
     get_team_snapshots,
     get_user_memories,
@@ -17,6 +22,8 @@ from utils.collaboration import (
     share_user_memory,
     summarize_audit_events,
     summarize_department_records,
+    share_analysis_state,
+    update_presence,
     update_learning_record_status,
     validate_learning_records,
 )
@@ -34,6 +41,10 @@ if not user.get("team"):
 username = user["username"] or "analyst"
 team = user["team"]
 user_role = user["role"] or "individual"
+update_presence(username=username, team=team, page="team_dashboard", status="active")
+presence = get_team_presence(team)
+submitted_team_reports = get_submitted_clinical_reports(team=team, visibility="team")
+submitted_public_reports = get_submitted_clinical_reports(visibility="public")
 memories = get_user_memories(username)
 team_feed = get_team_feed(team)
 snapshots = get_team_snapshots(team) if team else st.session_state.get("shared_snapshots", [])
@@ -57,6 +68,39 @@ with m3:
     info_card("My Memories", str(len(memories)), "#51CF66", "🧠")
 with m4:
     info_card("Audit Events", str(audit_summary["total"]), "#FFD43B", "📦")
+if presence:
+    st.caption(
+        "Live now: "
+        + " · ".join(
+            f"{p['user']} ({p.get('status','active')}, {p.get('page','dashboard')})"
+            for p in presence[:8]
+        )
+    )
+
+st.markdown("### 🔄 Shared Analysis Sync")
+with st.form("shared_analysis_sync_form", clear_on_submit=False):
+    sync_page = st.selectbox("Page", ["upload", "qc", "clustering", "annotation", "gene_explorer", "de", "pathway", "report"])
+    sync_plot = st.selectbox("Plot type", ["umap", "heatmap", "volcano", "table"])
+    sync_genes = st.text_input("Selected genes (comma-separated)", placeholder="GAPDH, CD3E")
+    sync_resolution = st.text_input("Clustering resolution", value="0.8")
+    sync_colour = st.text_input("Colour by", value="cell_type")
+    sync_submit = st.form_submit_button("Share my current view", type="primary", use_container_width=True)
+if sync_submit:
+    payload = {
+        "page": sync_page,
+        "plot_type": sync_plot,
+        "genes": [g.strip() for g in sync_genes.split(",") if g.strip()],
+        "resolution": sync_resolution.strip(),
+        "colour_by": sync_colour.strip(),
+    }
+    share_analysis_state(username=username, team=team, state=payload)
+    st.success("Shared analysis view with your team.")
+latest_shared = get_latest_shared_analysis_state(team)
+if latest_shared:
+    st.caption(
+        f"Latest shared by {latest_shared.get('sender')} at {latest_shared.get('timestamp')}"
+    )
+    st.json(latest_shared.get("state", {}), expanded=False)
 
 st.divider()
 left, right = st.columns([3, 2])
@@ -106,6 +150,86 @@ with left:
         st.dataframe(pd.DataFrame(snapshots[::-1]), use_container_width=True, hide_index=True)
     else:
         st.info("No shared snapshots yet. Use the sidebar button to share your current analysis state.")
+
+    st.markdown("### 📌 Plot Annotations")
+    with st.form("plot_annotation_form", clear_on_submit=True):
+        ann_plot = st.selectbox("Plot", ["umap", "heatmap", "volcano", "table"])
+        a1, a2 = st.columns(2)
+        ann_x = a1.number_input("X coordinate", value=0.0, step=0.1)
+        ann_y = a2.number_input("Y coordinate", value=0.0, step=0.1)
+        ann_comment = st.text_area("Comment", height=80, placeholder="Why this region or cluster matters.")
+        ann_submit = st.form_submit_button("Pin annotation", use_container_width=True)
+    if ann_submit:
+        try:
+            add_plot_annotation(username, team, ann_plot, ann_x, ann_y, ann_comment)
+            st.success("Annotation added.")
+            st.rerun()
+        except ValueError as exc:
+            st.error(str(exc))
+    annotations = get_plot_annotations(team, plot_type="all")
+    if annotations:
+        st.dataframe(pd.DataFrame(annotations[::-1]), use_container_width=True, hide_index=True)
+    else:
+        st.info("No plot annotations yet.")
+
+    st.markdown("### 📄 Team Submitted Reports")
+    if submitted_team_reports:
+        team_report_rows = []
+        for item in submitted_team_reports[::-1]:
+            rpt = item.get("report", {})
+            team_report_rows.append(
+                {
+                    "id": item.get("id"),
+                    "submitted_by": item.get("submitted_by"),
+                    "timestamp": item.get("timestamp"),
+                    "project": rpt.get("project", "N/A"),
+                    "analyst": rpt.get("analyst", "N/A"),
+                    "cells": rpt.get("metrics", {}).get("cells", 0),
+                    "clusters": rpt.get("metrics", {}).get("clusters", 0),
+                    "de_genes": rpt.get("metrics", {}).get("de_genes_count", 0),
+                    "de_group": rpt.get("filters_used", {}).get("de_group", ""),
+                }
+            )
+        st.dataframe(pd.DataFrame(team_report_rows), use_container_width=True, hide_index=True)
+    else:
+        st.info("No team-submitted reports yet.")
+
+    st.markdown("### 🌍 General Viewership Reports")
+    if submitted_public_reports:
+        public_rows = []
+        for item in submitted_public_reports[::-1]:
+            rpt = item.get("report", {})
+            public_rows.append(
+                {
+                    "id": item.get("id"),
+                    "team": item.get("team"),
+                    "submitted_by": item.get("submitted_by"),
+                    "timestamp": item.get("timestamp"),
+                    "project": rpt.get("project", "N/A"),
+                    "diagnosis": rpt.get("diagnosis", "N/A"),
+                    "cells": rpt.get("metrics", {}).get("cells", 0),
+                    "genes": rpt.get("metrics", {}).get("genes", 0),
+                }
+            )
+        public_df = pd.DataFrame(public_rows)
+        st.dataframe(public_df, use_container_width=True, hide_index=True)
+        p1, p2 = st.columns(2)
+        p1.download_button(
+            "Download general reports CSV",
+            data=public_df.to_csv(index=False).encode("utf-8"),
+            file_name="general_viewership_reports.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+        p2.download_button(
+            "Download general reports JSON",
+            data=public_df.to_json(orient="records", indent=2),
+            file_name="general_viewership_reports.json",
+            mime="application/json",
+            use_container_width=True,
+        )
+    else:
+        st.info("No general-viewership reports yet.")
 
 with right:
     st.markdown("### 👥 Team Shared Feed")

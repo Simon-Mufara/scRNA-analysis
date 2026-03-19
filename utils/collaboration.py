@@ -23,6 +23,11 @@ def _empty_store():
         "department_registry": [],
         "private_learning": {},
         "audit_log": [],
+        "presence": {},
+        "shared_analysis": {},
+        "annotations": [],
+        "submitted_reports_team": {},
+        "submitted_reports_public": [],
     }
 
 
@@ -156,6 +161,148 @@ def get_team_snapshots(team: str):
         return []
     store = _load_store()
     return store["team_snapshots"].get(team, [])
+
+
+def update_presence(username: str, team: str, page: str, status: str = "active"):
+    if not username or not team:
+        return
+    store = _load_store()
+    team_presence = store.setdefault("presence", {}).setdefault(team, {})
+    team_presence[username] = {
+        "user": username,
+        "team": team,
+        "page": (page or "dashboard").strip().lower(),
+        "status": (status or "active").strip().lower(),
+        "timestamp": _now_utc(),
+        "heartbeat_epoch": int(datetime.now(timezone.utc).timestamp()),
+    }
+    _save_store(store)
+
+
+def get_team_presence(team: str, active_within_seconds: int = 180):
+    if not team:
+        return []
+    now_epoch = int(datetime.now(timezone.utc).timestamp())
+    store = _load_store()
+    items = list(store.get("presence", {}).get(team, {}).values())
+    active = [item for item in items if now_epoch - int(item.get("heartbeat_epoch", 0)) <= active_within_seconds]
+    return sorted(active, key=lambda x: (x.get("status", "active"), x.get("user", "")))
+
+
+def share_analysis_state(username: str, team: str, state: dict):
+    if not username or not team:
+        raise ValueError("Team analysis sync requires a team user.")
+    payload = {
+        "id": str(uuid4()),
+        "team": team,
+        "sender": username,
+        "timestamp": _now_utc(),
+        "state": state or {},
+    }
+    store = _load_store()
+    store.setdefault("shared_analysis", {})[team] = payload
+    _save_store(store)
+    _append_audit_event("analysis_state_shared", username, team=team, details={"keys": sorted((state or {}).keys())})
+    return payload
+
+
+def get_latest_shared_analysis_state(team: str):
+    if not team:
+        return None
+    store = _load_store()
+    return store.get("shared_analysis", {}).get(team)
+
+
+def add_plot_annotation(username: str, team: str, plot_type: str, plot_x: float, plot_y: float, comment: str):
+    if not username or not team:
+        raise ValueError("Annotations require a team user.")
+    text = (comment or "").strip()
+    if not text:
+        raise ValueError("Annotation comment is required.")
+    annotation = {
+        "id": str(uuid4()),
+        "team": team,
+        "plot_type": (plot_type or "umap").strip().lower(),
+        "plot_x": float(plot_x),
+        "plot_y": float(plot_y),
+        "comment": text,
+        "author": username,
+        "timestamp": _now_utc(),
+    }
+    store = _load_store()
+    store.setdefault("annotations", []).append(annotation)
+    _save_store(store)
+    _append_audit_event(
+        "annotation_added",
+        username,
+        team=team,
+        details={"annotation_id": annotation["id"], "plot_type": annotation["plot_type"]},
+    )
+    return annotation
+
+
+def get_plot_annotations(team: str, plot_type: str = "all"):
+    if not team:
+        return []
+    ptype = (plot_type or "all").strip().lower()
+    store = _load_store()
+    rows = [a for a in store.get("annotations", []) if a.get("team") == team]
+    if ptype != "all":
+        rows = [a for a in rows if a.get("plot_type") == ptype]
+    return rows
+
+
+def submit_clinical_report(username: str, team: str, report_payload: dict, visibility: str = "team"):
+    if not username:
+        raise ValueError("User is not logged in.")
+    payload = {
+        "id": str(uuid4()),
+        "timestamp": _now_utc(),
+        "submitted_by": username,
+        "team": team or "individual",
+        "visibility": (visibility or "team").strip().lower(),
+        "report": report_payload or {},
+    }
+    store = _load_store()
+    # Always keep an immutable record in public archive for governance/model traceability.
+    store.setdefault("submitted_reports_public", []).append(payload)
+    if payload["visibility"] != "public":
+        t = payload["team"]
+        store.setdefault("submitted_reports_team", {}).setdefault(t, []).append(payload)
+    _save_store(store)
+    _append_audit_event(
+        "clinical_report_submitted",
+        username,
+        team=payload["team"],
+        details={"report_id": payload["id"], "visibility": payload["visibility"]},
+    )
+    return payload
+
+
+def get_submitted_clinical_reports(team: str = "", visibility: str = "team"):
+    store = _load_store()
+    vis = (visibility or "team").strip().lower()
+    if vis == "public":
+        return store.get("submitted_reports_public", [])
+    if not team:
+        return []
+    return store.get("submitted_reports_team", {}).get(team, [])
+
+
+def capture_pipeline_training_record(username: str, team: str, payload: dict):
+    data = payload or {}
+    required = data.get("required_steps_complete", False)
+    if not required:
+        return None
+    return submit_clinical_report(
+        username=username,
+        team=team,
+        report_payload={
+            "record_type": "pipeline_training_capture",
+            **data,
+        },
+        visibility="public",
+    )
 
 
 def publish_learning_record(

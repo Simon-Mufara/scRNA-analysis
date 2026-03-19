@@ -155,6 +155,28 @@ with left:
 - Record assumptions and limitations in your final report notes.
 """
     )
+    with st.expander("Before Upload: How to prepare .h5ad/.loom input files", expanded=False):
+        st.markdown(
+            """
+            If you do not yet have `.h5ad` or `.loom`, complete these preparation steps first:
+            1. Raw data generation (FASTQ from sequencing instrument)
+            2. Alignment + count matrix generation (e.g., Cell Ranger/STARsolo)
+            3. Basic QC and filtering in your preferred preprocessing tool
+            4. Convert matrix + metadata to AnnData/loom format
+            5. Validate that genes, cells, and metadata columns are consistent
+
+            This app starts at the analysis stage and expects a prepared file.
+            """
+        )
+    with st.expander("Alternative tool options by pipeline stage", expanded=False):
+        st.markdown(
+            """
+            - QC: Scanpy QC metrics, Scrublet (doublets), custom thresholds
+            - Clustering: Leiden/Louvain alternatives depending on study design
+            - Annotation: marker-based scoring + CellTypist + manual label curation
+            - Pathways: Enrichr sets, Reactome/GO alternatives, rank-based enrichment
+            """
+        )
 
 with right:
     st.markdown("### Download Manual")

@@ -18,10 +18,123 @@ def inject_global_css():
         st.markdown(
             """
             <style>
-            [data-testid="stAppViewContainer"] { background: #F7F9FC !important; }
+            :root {
+                --bg: #F7F9FC;
+                --surface: #FFFFFF;
+                --surface-2: #F3F6FB;
+                --border: #D9E2EC;
+                --text: #0F172A;
+                --muted: #475569;
+                --accent: #0284C7;
+                --accent-soft: #E0F2FE;
+            }
+            [data-testid="stAppViewContainer"] { background: var(--bg) !important; }
             [data-testid="stMain"] { background: transparent !important; }
-            [data-testid="stSidebar"] { background: #FFFFFF !important; border-right: 1px solid #E5E7EB !important; }
-            .block-container { max-width: 1380px !important; }
+            [data-testid="stSidebar"] { background: var(--surface) !important; border-right: 1px solid var(--border) !important; }
+            [data-testid="stSidebarContent"] { background: var(--surface) !important; }
+            [data-testid="stHeader"] {
+                background: #FFFFFF !important;
+                border-bottom: 1px solid var(--border) !important;
+            }
+            [data-testid="stHeader"] * {
+                color: #0F172A !important;
+            }
+            .block-container { max-width: 1380px !important; color: var(--text) !important; }
+            [data-testid="stSidebarNavItems"] a {
+                color: #334155 !important;
+                border: 1px solid transparent !important;
+                border-radius: 8px !important;
+            }
+            [data-testid="stSidebarNavItems"] a:hover {
+                background: #EFF6FF !important;
+                color: #0F172A !important;
+                border-color: #BFDBFE !important;
+            }
+            [data-testid="stSidebarNavItems"] a[aria-current="page"] {
+                background: #E0F2FE !important;
+                color: #0369A1 !important;
+                border-color: #7DD3FC !important;
+                font-weight: 700 !important;
+            }
+
+            h1, h2, h3, h4, h5, h6, p, span, label, div { color: var(--text) !important; }
+            small, .caption, [data-testid="stCaptionContainer"], [data-testid="stMarkdownContainer"] p { color: var(--muted) !important; }
+
+            [data-testid="metric-container"] {
+                background: var(--surface) !important;
+                border: 1px solid var(--border) !important;
+                box-shadow: 0 2px 12px rgba(15, 23, 42, 0.05) !important;
+            }
+            [data-testid="stMetricValue"] { color: var(--accent) !important; }
+            [data-testid="stMetricLabel"] { color: var(--muted) !important; }
+
+            [data-testid="stDataFrame"] {
+                border: 1px solid var(--border) !important;
+                background: var(--surface) !important;
+            }
+
+            [data-testid="baseButton-primary"] {
+                background: linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%) !important;
+                color: #FFFFFF !important;
+                border: none !important;
+            }
+            [data-testid="baseButton-secondary"] {
+                background: var(--surface) !important;
+                color: var(--accent) !important;
+                border: 1px solid #93C5FD !important;
+            }
+
+            [data-testid="stTabs"] [data-baseweb="tab-list"] {
+                border-bottom: 1px solid var(--border) !important;
+            }
+            [data-testid="stTabs"] [data-baseweb="tab"] {
+                color: var(--muted) !important;
+                background: transparent !important;
+            }
+            [data-testid="stTabs"] [aria-selected="true"] {
+                color: var(--accent) !important;
+                border-bottom: 2px solid var(--accent) !important;
+                background: transparent !important;
+            }
+
+            [data-testid="stTextInput"] input,
+            [data-testid="stTextArea"] textarea,
+            [data-testid="stNumberInput"] input,
+            [data-testid="stSelectbox"] > div > div {
+                background: var(--surface) !important;
+                color: var(--text) !important;
+                border: 1px solid var(--border) !important;
+            }
+            [data-testid="stTextInput"] input::placeholder,
+            [data-testid="stTextArea"] textarea::placeholder {
+                color: #94A3B8 !important;
+            }
+            [data-testid="stTextInput"] input:focus,
+            [data-testid="stTextArea"] textarea:focus,
+            [data-testid="stNumberInput"] input:focus {
+                border-color: var(--accent) !important;
+                box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.18) !important;
+            }
+
+            [data-testid="stFileUploader"] section {
+                background: var(--surface-2) !important;
+                border: 2px dashed #B6C2CF !important;
+            }
+            [data-testid="stExpander"] {
+                background: var(--surface) !important;
+                border: 1px solid var(--border) !important;
+            }
+            [data-testid="stAlert"] {
+                background: #F8FAFC !important;
+                border: 1px solid var(--border) !important;
+            }
+
+            code {
+                background: #EEF2FF !important;
+                color: #1D4ED8 !important;
+                border: 1px solid #C7D2FE !important;
+            }
+            hr { border-color: var(--border) !important; }
             </style>
             """,
             unsafe_allow_html=True,
@@ -421,6 +534,10 @@ def render_sidebar():
     theme_choice = st.sidebar.selectbox("Theme", ["Dark", "Light"], index=0 if st.session_state.get("theme_mode") == "Dark" else 1)
     if theme_choice != st.session_state.get("theme_mode"):
         st.session_state["theme_mode"] = theme_choice
+        try:
+            st.query_params["theme_mode"] = theme_choice
+        except Exception:
+            pass
         st.rerun()
     st.sidebar.progress(progress_pct / 100.0, text=f"Progress {progress_pct}%")
     with st.sidebar.expander("View pipeline steps", expanded=False):

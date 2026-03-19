@@ -406,6 +406,9 @@ def authenticate_user_account(username: str, password: str, login_mode: str, tea
         return None, "Invalid username or password."
 
     team = get_user_team(uname)
+    configured_admin = get_platform_admin_username("")
+    if not team and configured_admin and uname == configured_admin:
+        team = "organization"
     mode = (login_mode or "Individual").strip().lower()
     if mode == "team":
         if not team:
