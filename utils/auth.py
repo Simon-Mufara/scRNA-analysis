@@ -406,10 +406,19 @@ def render_login_gate():
 
                         user_row = get_user_by_email(fp_email)
                         if user_row:
-                            send_password_reset_email(user_row["email"], user_row["username"], token)
-                    except Exception:
-                        pass
-                    st.success("If the email exists, a password reset message has been sent.")
+                            sent, mail_err = send_password_reset_email(user_row["email"], user_row["username"], token)
+                            if sent:
+                                st.success("If the email exists, a password reset message has been sent.")
+                            else:
+                                st.error(f"Password reset email could not be delivered: {mail_err}")
+                                st.caption("Use reset token fallback below.")
+                                st.code(token)
+                        else:
+                            st.success("If the email exists, a password reset message has been sent.")
+                    except Exception as exc:
+                        st.error(f"Password reset email could not be delivered: {exc}")
+                        st.caption("Use reset token fallback below.")
+                        st.code(token)
                 else:
                     st.warning("SMTP not configured; using reset token fallback.")
                     st.code(token)
