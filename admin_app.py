@@ -240,6 +240,7 @@ with st.expander("Backend configuration (SMTP + Entra)", expanded=False):
             ["true", "false"],
             index=0 if get_system_setting("mail.smtp_use_starttls", "true") == "true" else 1,
         )
+        smtp_timeout = st.text_input("SMTP Timeout (seconds)", value=get_system_setting("mail.smtp_timeout_seconds", "10"))
         app_public_url = st.text_input("App Public URL", value=get_system_setting("mail.app_public_url"))
         save_smtp = st.form_submit_button("Save SMTP settings", use_container_width=True)
         test_to = st.text_input("SMTP test recipient email")
@@ -252,6 +253,7 @@ with st.expander("Backend configuration (SMTP + Entra)", expanded=False):
         set_system_setting("mail.smtp_from_email", smtp_from.strip())
         set_system_setting("mail.smtp_use_ssl", smtp_ssl.strip())
         set_system_setting("mail.smtp_use_starttls", smtp_starttls.strip())
+        set_system_setting("mail.smtp_timeout_seconds", smtp_timeout.strip() or "10")
         set_system_setting("mail.app_public_url", app_public_url.strip())
         st.success("SMTP/backend email settings saved.")
     if test_smtp:
@@ -296,6 +298,7 @@ with st.expander("Backend configuration (SMTP + Entra)", expanded=False):
                 {"check": "From email", "value": diag["from_email"] or "(missing)"},
                 {"check": "Use SSL", "value": str(diag["use_ssl"])},
                 {"check": "Use STARTTLS", "value": str(diag["use_starttls"])},
+                {"check": "SMTP timeout seconds", "value": str(diag["timeout_seconds"])},
                 {"check": "App public URL", "value": diag["app_public_url"] or "(optional)"},
             ]
         ),

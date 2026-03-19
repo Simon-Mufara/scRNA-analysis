@@ -13,6 +13,20 @@ PALETTE = [
 ]
 
 def inject_global_css():
+    theme_mode = st.session_state.get("theme_mode", "Dark")
+    if theme_mode == "Light":
+        st.markdown(
+            """
+            <style>
+            [data-testid="stAppViewContainer"] { background: #F7F9FC !important; }
+            [data-testid="stMain"] { background: transparent !important; }
+            [data-testid="stSidebar"] { background: #FFFFFF !important; border-right: 1px solid #E5E7EB !important; }
+            .block-container { max-width: 1380px !important; }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+        return
     st.markdown("""
     <style>
     /* ── Google Fonts – Inter ─────────────────── */
@@ -340,6 +354,7 @@ def render_sidebar():
     except Exception:
         pass
     completed = st.session_state.get("pipeline_status", {})
+    st.session_state.setdefault("theme_mode", "Dark")
     lucide_base = "https://unpkg.com/lucide-static@latest/icons"
     icon_map = {
         "upload_file": "upload",
@@ -403,6 +418,10 @@ def render_sidebar():
         '<div style="border-top:1px solid #161B22;margin-top:8px;padding-top:6px;"></div>'
     )
     st.sidebar.markdown(sidebar_html, unsafe_allow_html=True)
+    theme_choice = st.sidebar.selectbox("Theme", ["Dark", "Light"], index=0 if st.session_state.get("theme_mode") == "Dark" else 1)
+    if theme_choice != st.session_state.get("theme_mode"):
+        st.session_state["theme_mode"] = theme_choice
+        st.rerun()
     st.sidebar.progress(progress_pct / 100.0, text=f"Progress {progress_pct}%")
     with st.sidebar.expander("View pipeline steps", expanded=False):
         for step, icon_name in pipeline_steps:

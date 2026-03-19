@@ -393,10 +393,11 @@ def admin_create_user_account(
 
 def authenticate_user_account(username: str, password: str, login_mode: str, team_name: str = ""):
     init_db()
-    uname = (username or "").strip().lower()
-    user = _get_user_row(uname)
+    identifier = (username or "").strip().lower()
+    user = _get_user_row_by_email(identifier) if "@" in identifier else _get_user_row(identifier)
     if not user:
         return None, "Invalid username or password."
+    uname = user["username"]
     if not user.get("is_active"):
         return None, "Account is inactive."
     if not user.get("email_verified"):
@@ -553,6 +554,13 @@ def delete_user_account(username: str, password: str):
             (now_epoch, uname),
         )
     return True, None
+
+
+def delete_user_account_by_email(email: str, password: str):
+    user = _get_user_row_by_email(email)
+    if not user:
+        return False, "No account found for this email."
+    return delete_user_account(user["username"], password)
 
 
 def insert_department_record(record: dict):

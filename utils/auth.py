@@ -1,4 +1,6 @@
 import os
+import base64
+from pathlib import Path
 
 import streamlit as st
 from utils.entra_auth import (
@@ -9,6 +11,9 @@ from utils.entra_auth import (
 )
 
 PLATFORM_ADMIN_USERNAME = os.getenv("PLATFORM_ADMIN_USERNAME", "simon_admin").strip().lower()
+GOOGLE_LOGIN_URL = os.getenv("GOOGLE_LOGIN_URL", "").strip()
+GITHUB_LOGIN_URL = os.getenv("GITHUB_LOGIN_URL", "").strip()
+LOGIN_BG_PATH = Path(__file__).resolve().parents[1] / "assets" / "images" / "login_hero.svg"
 
 DEMO_USERS = {
     "analyst": {"password": "demo123", "team": None, "role": "individual"},
@@ -171,6 +176,43 @@ def render_login_gate():
             pass
 
     st.markdown("## 🔐 Login required")
+    if LOGIN_BG_PATH.exists():
+        try:
+            bg_b64 = base64.b64encode(LOGIN_BG_PATH.read_bytes()).decode("ascii")
+            st.markdown(
+                f"""
+                <style>
+                [data-testid="stAppViewContainer"] {{
+                    background:
+                        linear-gradient(135deg, rgba(7,11,20,0.56), rgba(7,11,20,0.78)),
+                        url("data:image/svg+xml;base64,{bg_b64}") center center / contain no-repeat fixed !important;
+                }}
+                .block-container {{
+                    background: rgba(13,17,23,0.76);
+                    border: 1px solid rgba(255,255,255,0.12);
+                    border-radius: 16px;
+                    padding: 0.65rem 0.75rem 0.85rem 0.75rem !important;
+                    max-width: 430px !important;
+                    margin: 2.2vh auto 0 auto !important;
+                    box-shadow: 0 16px 48px rgba(0,0,0,0.38);
+                }}
+                [data-testid="stMainBlockContainer"] {{
+                    max-width: 430px !important;
+                    margin-left: auto !important;
+                    margin-right: auto !important;
+                }}
+                @media (max-width: 900px) {{
+                    .block-container {{
+                        max-width: 94% !important;
+                        margin-top: 1.25rem !important;
+                    }}
+                }}
+                </style>
+                """,
+                unsafe_allow_html=True,
+            )
+        except Exception:
+            pass
     if "entra_login_state" not in st.session_state:
         st.session_state["entra_login_state"] = new_state_token()
 
@@ -205,9 +247,10 @@ def render_login_gate():
             st.rerun()
         if entra_error:
             st.error(entra_error)
-    st.markdown("Use **Sign in** for existing accounts, or create and verify a new account below.")
-    st.caption("Demo users: analyst/teamlead/member1/deptadmin/orgadmin (password demo123).")
-    st.caption("Platform admin credentials are managed in the separate admin backend app (default port 8601).")
+    st.markdown("Use **Sign in** for existing accounts, or create a new account.")
+    with st.expander("Need account help?", expanded=False):
+        st.caption("Demo users: analyst/teamlead/member1/deptadmin/orgadmin (password demo123).")
+        st.caption("Platform admin credentials are managed in the separate admin backend app (default port 8601).")
     try:
         from utils.mailer import mail_enabled
 
@@ -218,11 +261,23 @@ def render_login_gate():
     try:
         qp = st.query_params
         if qp.get("verify_user") and qp.get("verify_token"):
-            st.info("Verification link detected. Open 'Verify email' below and submit.")
-            st.session_state["verify_user"] = qp.get("verify_user")
-            st.session_state["verify_token"] = qp.get("verify_token")
+            try:
+                from utils.backend_db import verify_email_with_token
+
+                ok, err = verify_email_with_token(qp.get("verify_user"), qp.get("verify_token"))
+                if ok:
+                    st.success("Email verified successfully from your inbox link. You can now sign in.")
+                else:
+                    st.error(err or "Verification link is invalid or expired.")
+            except Exception:
+                st.error("Verification failed. Please try again.")
+            try:
+                del st.query_params["verify_user"]
+                del st.query_params["verify_token"]
+            except Exception:
+                pass
         if qp.get("reset_email") and qp.get("reset_token"):
-            st.info("Password reset link detected. Open 'Reset password' below and submit.")
+            st.info("Password reset link detected. Open 'Self-service & Help → Reset password' below and submit.")
             st.session_state["reset_email"] = qp.get("reset_email")
             st.session_state["reset_token"] = qp.get("reset_token")
     except Exception:
@@ -234,14 +289,54 @@ def render_login_gate():
             use_container_width=True,
         )
         st.caption("Entra sign-in uses OIDC + MFA policy from your tenant.")
-    tab_signin, tab_create, tab_verify, tab_forgot, tab_reset = st.tabs(
-        ["Sign in", "Create account", "Verify email", "Forgot password", "Reset password"]
+    c_google, c_github = st.columns(2)
+    with c_google:
+        if GOOGLE_LOGIN_URL:
+            st.markdown(
+                f"""
+                <a href="{GOOGLE_LOGIN_URL}" target="_self" style="text-decoration:none;">
+                  <div style="border:1px solid #30363D;border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:8px;justify-content:center;">
+                    <img src="https://cdn.simpleicons.org/google" width="16" height="16"/>
+                    <span style="color:#C9D1D9;font-weight:600;">Continue with Google</span>
+                  </div>
+                </a>
+                """,
+                unsafe_allow_html=True,
+            )
+        else:
+            st.button("Continue with Google", disabled=True, use_container_width=True, help="Set GOOGLE_LOGIN_URL to enable.")
+    with c_github:
+        if GITHUB_LOGIN_URL:
+            st.markdown(
+                f"""
+                <a href="{GITHUB_LOGIN_URL}" target="_self" style="text-decoration:none;">
+                  <div style="border:1px solid #30363D;border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:8px;justify-content:center;">
+                    <img src="https://cdn.simpleicons.org/github/ffffff" width="16" height="16"/>
+                    <span style="color:#C9D1D9;font-weight:600;">Continue with GitHub</span>
+                  </div>
+                </a>
+                """,
+                unsafe_allow_html=True,
+            )
+        else:
+            st.button("Continue with GitHub", disabled=True, use_container_width=True, help="Set GITHUB_LOGIN_URL to enable.")
+
+    tab_signin, tab_create, tab_self_service = st.tabs(
+        ["Sign in", "Create account", "Self-service & Help"]
     )
 
     with tab_signin:
         prefill_user = st.query_params.get("remember_user", "")
         prefill_mode = st.query_params.get("remember_mode", "Individual")
         prefill_team = st.query_params.get("remember_team", "")
+        st.caption("You can sign in with either your username or your account email.")
+        recovered_user = st.session_state.get("recovered_username", "")
+        if recovered_user:
+            st.info(f"Recovered username: {recovered_user}")
+        recovered_token = st.session_state.get("recovered_reset_token", "")
+        if recovered_token:
+            st.info("Recovery token ready (you can paste it in Self-service → Reset password).")
+            st.code(recovered_token)
         with st.form("login_form", clear_on_submit=False):
             login_mode = st.radio(
                 "Login as",
@@ -249,15 +344,16 @@ def render_login_gate():
                 horizontal=True,
                 index=1 if prefill_mode == "Team" else 0,
             )
-            username = st.text_input("Username", value=prefill_user, placeholder="e.g. analyst or teamlead")
+            username = st.text_input("Username or email", value=prefill_user, placeholder="e.g. analyst or name@org.com")
             password = st.text_input("Password", type="password")
-            team_name = st.text_input(
-                "Team name",
-                value=prefill_team if prefill_mode == "Team" else "",
-                placeholder="e.g. Oncology Team",
-                disabled=login_mode != "Team",
-            )
-            remember_login = st.checkbox("Remember username/team on this device", value=bool(prefill_user))
+            team_name = ""
+            if login_mode == "Team":
+                team_name = st.text_input(
+                    "Team name",
+                    value=prefill_team if prefill_mode == "Team" else "",
+                    placeholder="e.g. Oncology Team",
+                )
+            remember_login = st.checkbox("Remember login details on this device", value=bool(prefill_user))
             if login_mode == "Team":
                 st.caption("Demo team names: Oncology Team, Pathology Department.")
             submitted = st.form_submit_button("Login", type="primary", use_container_width=True)
@@ -370,80 +466,120 @@ def render_login_gate():
                 else:
                     st.error(err or "Unable to create account.")
 
-    with tab_verify:
-        with st.form("verify_email_form", clear_on_submit=True):
-            v_user = st.text_input("Username", key="verify_user")
-            v_token = st.text_input("Verification token", key="verify_token")
-            v_submit = st.form_submit_button("Verify email", use_container_width=True)
-        if v_submit:
-            try:
-                from utils.backend_db import verify_email_with_token
+    with tab_self_service:
+        st.caption("Need help signing in? Use the tools below for account recovery and security actions.")
+        ss_forgot_user, ss_forgot_pw, ss_reset_pw, ss_deactivate, ss_help = st.tabs(
+            ["Forgot username", "Forgot password", "Reset password", "Deactivate account", "Help & Security"]
+        )
 
-                ok, err = verify_email_with_token(v_user, v_token)
-            except Exception:
-                ok, err = False, "Verification failed."
-            if ok:
-                st.success("Email verified. You can now login.")
-            else:
-                st.error(err or "Verification failed.")
-
-    with tab_forgot:
-        with st.form("forgot_pw_form", clear_on_submit=True):
-            fp_email = st.text_input("Account email")
-            fp_submit = st.form_submit_button("Request reset token", use_container_width=True)
-        if fp_submit:
-            try:
-                from utils.backend_db import issue_password_reset_token
-                from utils.mailer import mail_enabled, send_password_reset_email
-
-                token, err = issue_password_reset_token(fp_email)
-            except Exception:
-                token, err = None, "Password reset is unavailable."
-            if token:
-                if mail_enabled():
-                    try:
-                        from utils.backend_db import get_user_by_email
-
-                        user_row = get_user_by_email(fp_email)
-                        if user_row:
-                            sent, mail_err = send_password_reset_email(user_row["email"], user_row["username"], token)
-                            if sent:
-                                st.success("If the email exists, a password reset message has been sent.")
-                            else:
-                                st.error(f"Password reset email could not be delivered: {mail_err}")
-                                st.caption("Use reset token fallback below.")
-                                st.code(token)
-                        else:
-                            st.success("If the email exists, a password reset message has been sent.")
-                    except Exception as exc:
-                        st.error(f"Password reset email could not be delivered: {exc}")
-                        st.caption("Use reset token fallback below.")
-                        st.code(token)
-                else:
-                    st.warning("SMTP not configured; using reset token fallback.")
-                    st.code(token)
-            else:
-                st.success("If the email exists, a password reset message has been sent.")
-
-    with tab_reset:
-        with st.form("reset_pw_form", clear_on_submit=True):
-            rp_email = st.text_input("Account email", key="reset_email")
-            rp_token = st.text_input("Reset token", key="reset_token")
-            rp_new = st.text_input("New password", type="password", key="reset_new")
-            rp_new2 = st.text_input("Confirm new password", type="password", key="reset_new2")
-            rp_submit = st.form_submit_button("Reset password", use_container_width=True)
-        if rp_submit:
-            if rp_new != rp_new2:
-                st.error("Passwords do not match.")
-            else:
+        with ss_forgot_user:
+            with st.form("forgot_username_form", clear_on_submit=True):
+                fu_email = st.text_input("Account email")
+                fu_submit = st.form_submit_button("Send username reminder", use_container_width=True)
+            if fu_submit:
                 try:
-                    from utils.backend_db import reset_password_with_email_token
+                    from utils.backend_db import get_user_by_email
+                    from utils.mailer import mail_enabled, send_username_reminder_email
 
-                    ok, err = reset_password_with_email_token(rp_email, rp_token, rp_new)
+                    user_row = get_user_by_email(fu_email)
+                    if user_row:
+                        st.session_state["recovered_username"] = user_row["username"]
+                        try:
+                            st.query_params["remember_user"] = user_row["username"]
+                        except Exception:
+                            pass
+                        st.success("Account found. Use this username to sign in:")
+                        st.code(user_row["username"])
+                        if mail_enabled():
+                            sent, mail_err = send_username_reminder_email(user_row["email"], user_row["username"])
+                            if not sent:
+                                st.warning(f"Email reminder was not delivered: {mail_err}")
+                    else:
+                        st.success("If the email exists, a username reminder has been sent.")
                 except Exception:
-                    ok, err = False, "Password reset failed."
-                if ok:
-                    st.success("Password reset successful. You can now login.")
+                    st.success("If the email exists, a username reminder has been sent.")
+
+        with ss_forgot_pw:
+            with st.form("forgot_pw_form", clear_on_submit=True):
+                fp_email = st.text_input("Account email")
+                fp_submit = st.form_submit_button("Request reset token", use_container_width=True)
+            if fp_submit:
+                try:
+                    from utils.backend_db import issue_password_reset_token
+                    from utils.mailer import mail_enabled, send_password_reset_email
+
+                    token, err = issue_password_reset_token(fp_email)
+                except Exception:
+                    token, err = None, "Password reset is unavailable."
+                if token:
+                    st.session_state["recovered_reset_token"] = token
+                    st.success("Reset token generated. Use it now in the Reset password tab below.")
+                    st.code(token)
+                    if mail_enabled():
+                        try:
+                            from utils.backend_db import get_user_by_email
+
+                            user_row = get_user_by_email(fp_email)
+                            if user_row:
+                                sent, mail_err = send_password_reset_email(user_row["email"], user_row["username"], token)
+                                if sent:
+                                    st.success("Password reset email has been sent.")
+                                else:
+                                    st.warning(f"Password reset email could not be delivered: {mail_err}")
+                            else:
+                                st.success("If the email exists, a password reset message has been sent.")
+                        except Exception as exc:
+                            st.warning(f"Password reset email could not be delivered: {exc}")
+                    else:
+                        st.info("SMTP is not configured; token fallback is active.")
                 else:
-                    st.error(err or "Password reset failed.")
+                    st.success("If the email exists, a password reset message has been sent.")
+
+        with ss_reset_pw:
+            with st.form("reset_pw_form", clear_on_submit=True):
+                rp_email = st.text_input("Account email", key="reset_email")
+                rp_token = st.text_input("Reset token", key="reset_token")
+                rp_new = st.text_input("New password", type="password", key="reset_new")
+                rp_new2 = st.text_input("Confirm new password", type="password", key="reset_new2")
+                rp_submit = st.form_submit_button("Reset password", use_container_width=True)
+            if rp_submit:
+                if rp_new != rp_new2:
+                    st.error("Passwords do not match.")
+                else:
+                    try:
+                        from utils.backend_db import reset_password_with_email_token
+
+                        ok, err = reset_password_with_email_token(rp_email, rp_token, rp_new)
+                    except Exception:
+                        ok, err = False, "Password reset failed."
+                    if ok:
+                        st.success("Password reset successful. You can now login.")
+                    else:
+                        st.error(err or "Password reset failed.")
+
+        with ss_deactivate:
+            with st.form("deactivate_account_form", clear_on_submit=True):
+                da_email = st.text_input("Account email")
+                da_password = st.text_input("Account password", type="password")
+                da_submit = st.form_submit_button("Deactivate my account", type="secondary", use_container_width=True)
+            if da_submit:
+                try:
+                    from utils.backend_db import delete_user_account_by_email
+
+                    ok, err = delete_user_account_by_email(da_email, da_password)
+                except Exception:
+                    ok, err = False, "Account deactivation failed."
+                if ok:
+                    st.success("Account deactivated successfully.")
+                else:
+                    st.error(err or "Account deactivation failed.")
+
+        with ss_help:
+            st.info(
+                "Your security matters: passwords are hashed, verification/reset tokens are one-time and expire, "
+                "and sessions can be revoked on logout."
+            )
+            st.caption(
+                "For support, contact your platform administrator if you cannot access your registered email."
+            )
     st.stop()
