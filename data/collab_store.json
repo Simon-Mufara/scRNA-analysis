@@ -29,6 +29,56 @@
           "Upload"
         ],
         "completion": 1
+      },
+      {
+        "id": "97edb4ca-bbca-4178-a249-6cf59caa5ab9",
+        "timestamp": "2026-03-20 10:14 UTC",
+        "done_steps": [
+          "Upload"
+        ],
+        "completion": 1
+      },
+      {
+        "id": "697f39d4-46d1-4b3f-b7b0-548fbf4ce699",
+        "timestamp": "2026-03-20 10:15 UTC",
+        "done_steps": [
+          "Upload",
+          "QC"
+        ],
+        "completion": 2
+      },
+      {
+        "id": "77a01f3f-9434-436b-a129-c3a4d5f8731a",
+        "timestamp": "2026-03-20 10:16 UTC",
+        "done_steps": [
+          "Upload",
+          "QC",
+          "Clustering"
+        ],
+        "completion": 3
+      },
+      {
+        "id": "3fb83f7b-b068-483a-b995-297ce2f474d7",
+        "timestamp": "2026-03-20 10:18 UTC",
+        "done_steps": [
+          "Upload",
+          "QC",
+          "Clustering",
+          "Annotation"
+        ],
+        "completion": 4
+      },
+      {
+        "id": "5ec03cae-6e5b-47d1-b82b-dc25bbd8bfaf",
+        "timestamp": "2026-03-20 10:19 UTC",
+        "done_steps": [
+          "Upload",
+          "QC",
+          "Clustering",
+          "Annotation",
+          "Diff. Expression"
+        ],
+        "completion": 5
       }
     ]
   },
@@ -62,6 +112,78 @@
       "details": {
         "completion": 1
       }
+    },
+    {
+      "id": "bc1aae72-8b1a-4933-a7c4-d983f0e484e6",
+      "timestamp": "2026-03-20 10:14 UTC",
+      "event_type": "private_learning_logged",
+      "actor": "simonmufara",
+      "team": "individual",
+      "details": {
+        "completion": 1
+      }
+    },
+    {
+      "id": "d8c22f39-9509-44c1-811f-c56a37b1675a",
+      "timestamp": "2026-03-20 10:15 UTC",
+      "event_type": "private_learning_logged",
+      "actor": "simonmufara",
+      "team": "individual",
+      "details": {
+        "completion": 2
+      }
+    },
+    {
+      "id": "be0c0dd3-1629-4c2e-8d4e-c4f1407cef82",
+      "timestamp": "2026-03-20 10:16 UTC",
+      "event_type": "private_learning_logged",
+      "actor": "simonmufara",
+      "team": "individual",
+      "details": {
+        "completion": 3
+      }
+    },
+    {
+      "id": "3fdd5ef5-5d7a-4047-8562-d69f1aa8ab57",
+      "timestamp": "2026-03-20 10:18 UTC",
+      "event_type": "private_learning_logged",
+      "actor": "simonmufara",
+      "team": "individual",
+      "details": {
+        "completion": 4
+      }
+    },
+    {
+      "id": "4bffa429-dc64-4ad2-bb30-ff7dbd5651b8",
+      "timestamp": "2026-03-20 10:19 UTC",
+      "event_type": "private_learning_logged",
+      "actor": "simonmufara",
+      "team": "individual",
+      "details": {
+        "completion": 5
+      }
+    },
+    {
+      "id": "ad63d3b1-d0cd-4288-9a2c-52cd08325d20",
+      "timestamp": "2026-03-20 10:21 UTC",
+      "event_type": "clinical_report_submitted",
+      "actor": "simonmufara",
+      "team": "organization",
+      "details": {
+        "report_id": "52d12b8d-3e9d-46ed-86bb-e050822c8d8a",
+        "visibility": "public"
+      }
+    },
+    {
+      "id": "6f47a238-0148-45fc-8557-3b23f7860cbd",
+      "timestamp": "2026-03-20 10:21 UTC",
+      "event_type": "clinical_report_submitted",
+      "actor": "simonmufara",
+      "team": "organization",
+      "details": {
+        "report_id": "c05e8090-b98d-4705-ac95-db49208206c5",
+        "visibility": "public"
+      }
     }
   ],
   "presence": {
@@ -71,13 +193,173 @@
         "team": "organization",
         "page": "team_dashboard",
         "status": "active",
-        "timestamp": "2026-03-20 09:00 UTC",
-        "heartbeat_epoch": 1773997222
+        "timestamp": "2026-03-20 10:21 UTC",
+        "heartbeat_epoch": 1774002084
       }
     }
   },
   "shared_analysis": {},
   "annotations": [],
   "submitted_reports_team": {},
-  "submitted_reports_public": []
+  "submitted_reports_public": [
+    {
+      "id": "52d12b8d-3e9d-46ed-86bb-e050822c8d8a",
+      "timestamp": "2026-03-20 10:21 UTC",
+      "submitted_by": "simonmufara",
+      "team": "organization",
+      "visibility": "public",
+      "report": {
+        "project": "N/A",
+        "analyst": "simonmufara",
+        "diagnosis": "N/A",
+        "generated_at": "2026-03-20 12:21 UTC",
+        "notes": "",
+        "metrics": {
+          "cells": 2698,
+          "genes": 13714,
+          "clusters": 6,
+          "cell_types": 17,
+          "de_genes_count": 50
+        },
+        "filters_used": {
+          "de_group": "0",
+          "de_top_genes": [
+            "RPS12",
+            "LDHB",
+            "RPS25",
+            "RPS27",
+            "RPS6",
+            "RPS3",
+            "CD3D",
+            "RPS14",
+            "RPL31",
+            "TPT1",
+            "RPL30",
+            "RPL3",
+            "RPL32",
+            "RPS27A",
+            "RPS15A",
+            "RPL9",
+            "RPLP2",
+            "RPS18",
+            "RPS29",
+            "EEF1A1"
+          ],
+          "pathway_terms": [
+            "Peptide Chain Elongation R-HSA-156902",
+            "Eukaryotic Translation Elongation R-HSA-156842",
+            "Viral mRNA Translation R-HSA-192823",
+            "Selenocysteine Synthesis R-HSA-2408557",
+            "Eukaryotic Translation Termination R-HSA-72764",
+            "Nonsense Mediated Decay (NMD) Independent Of Exon Junction Complex (EJC) R-HSA-975956",
+            "Response Of EIF2AK4 (GCN2) To Amino Acid Deficiency R-HSA-9633012",
+            "Formation Of A Pool Of Free 40S Subunits R-HSA-72689",
+            "SRP-dependent Cotranslational Protein Targeting To Membrane R-HSA-1799339",
+            "L13a-mediated Translational Silencing Of Ceruloplasmin Expression R-HSA-156827"
+          ],
+          "pathway_scores": [
+            181385.46596179449,
+            165938.50200494932,
+            142116.59378549593,
+            142116.59378549593,
+            142116.59378549593,
+            136332.1120710664,
+            121295.41226123297,
+            121295.41226123297,
+            102005.79048038294,
+            102005.79048038294
+          ]
+        },
+        "required_steps_complete": true,
+        "pipeline_steps": {
+          "Data Loaded": true,
+          "QC Performed": true,
+          "Clustering": true,
+          "Cell Annotation": true,
+          "DE Analysis": true,
+          "Pathway Analysis": true
+        }
+      }
+    },
+    {
+      "id": "c05e8090-b98d-4705-ac95-db49208206c5",
+      "timestamp": "2026-03-20 10:21 UTC",
+      "submitted_by": "simonmufara",
+      "team": "organization",
+      "visibility": "public",
+      "report": {
+        "record_type": "pipeline_training_capture",
+        "project": "N/A",
+        "analyst": "simonmufara",
+        "diagnosis": "N/A",
+        "generated_at": "2026-03-20 12:21 UTC",
+        "notes": "",
+        "metrics": {
+          "cells": 2698,
+          "genes": 13714,
+          "clusters": 6,
+          "cell_types": 17,
+          "de_genes_count": 50
+        },
+        "filters_used": {
+          "de_group": "0",
+          "de_top_genes": [
+            "RPS12",
+            "LDHB",
+            "RPS25",
+            "RPS27",
+            "RPS6",
+            "RPS3",
+            "CD3D",
+            "RPS14",
+            "RPL31",
+            "TPT1",
+            "RPL30",
+            "RPL3",
+            "RPL32",
+            "RPS27A",
+            "RPS15A",
+            "RPL9",
+            "RPLP2",
+            "RPS18",
+            "RPS29",
+            "EEF1A1"
+          ],
+          "pathway_terms": [
+            "Peptide Chain Elongation R-HSA-156902",
+            "Eukaryotic Translation Elongation R-HSA-156842",
+            "Viral mRNA Translation R-HSA-192823",
+            "Selenocysteine Synthesis R-HSA-2408557",
+            "Eukaryotic Translation Termination R-HSA-72764",
+            "Nonsense Mediated Decay (NMD) Independent Of Exon Junction Complex (EJC) R-HSA-975956",
+            "Response Of EIF2AK4 (GCN2) To Amino Acid Deficiency R-HSA-9633012",
+            "Formation Of A Pool Of Free 40S Subunits R-HSA-72689",
+            "SRP-dependent Cotranslational Protein Targeting To Membrane R-HSA-1799339",
+            "L13a-mediated Translational Silencing Of Ceruloplasmin Expression R-HSA-156827"
+          ],
+          "pathway_scores": [
+            181385.46596179449,
+            165938.50200494932,
+            142116.59378549593,
+            142116.59378549593,
+            142116.59378549593,
+            136332.1120710664,
+            121295.41226123297,
+            121295.41226123297,
+            102005.79048038294,
+            102005.79048038294
+          ]
+        },
+        "required_steps_complete": true,
+        "pipeline_steps": {
+          "Data Loaded": true,
+          "QC Performed": true,
+          "Clustering": true,
+          "Cell Annotation": true,
+          "DE Analysis": true,
+          "Pathway Analysis": true
+        }
+      }
+    }
+  ]
 }
