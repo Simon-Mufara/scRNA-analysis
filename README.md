@@ -94,6 +94,88 @@ Available minimal endpoints:
 - `POST /pipeline/annotate/celltypist`
 - `POST /pipeline/pathway`
 
+## ilifu HPC + SLURM Deployment (Recommended for large workloads)
+
+Use this pattern on ilifu:
+- Run **Streamlit** and **FastAPI** as lightweight services.
+- Run heavy analysis on compute nodes via **SLURM jobs**.
+- Keep uploads/results on shared storage.
+
+### 1) Environment setup on ilifu
+
+```bash
+git clone https://github.com/Simon-Mufara/scRNA-analysis.git
+cd scRNA-analysis
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+mkdir -p logs data/uploads
+```
+
+Set required environment variables (example):
+
+```bash
+export FRONTEND_URL="https://your-public-app-url"
+export SUPPORT_EMAIL="support@your-org.org"
+export SMTP_HOST="..."
+export SMTP_PORT="587"
+export SMTP_USERNAME="..."
+export SMTP_PASSWORD="..."
+export SMTP_FROM_EMAIL="..."
+```
+
+### 2) Start web services
+
+```bash
+sbatch scripts/hpc/start_backend.sbatch
+sbatch scripts/hpc/start_streamlit.sbatch
+```
+
+### 3) Run compute through SLURM
+
+Enable SLURM execution in backend:
+
+```bash
+export ANALYSIS_RUNNER=slurm
+export SLURM_RESULTS_DIR=/scratch3/users/simon/scRNA-analysis/data/slurm_results
+```
+
+When users call `POST /analyze`, backend now submits `sbatch` automatically and tracks job status/results.
+
+Manual submit (optional):
+
+```bash
+sbatch scripts/hpc/run_pipeline.sbatch /shared/path/to/input.h5ad /scratch3/users/simon/scRNA-analysis/data/slurm_results/manual.json
+```
+
+### 4) ilifu login-node workflow (no disruption to other users)
+
+SSH login:
+
+```bash
+ssh simon@slurm.ilifu.ac.za
+cd /scratch3/users/simon
+git clone https://github.com/Simon-Mufara/scRNA-analysis.git
+cd scRNA-analysis
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+mkdir -p logs data/uploads data/slurm_results
+```
+
+Run everything via scheduler (preferred):
+
+```bash
+sbatch scripts/hpc/start_backend.sbatch
+sbatch scripts/hpc/start_streamlit.sbatch
+squeue -u simon
+```
+
+### 5) Production routing
+
+- Put Nginx/Apache in front of Streamlit/FastAPI for HTTPS and stable URLs.
+- Restrict direct node ports; expose only proxy endpoints.
+- Keep debug endpoints for internal use only.
+
 ## Extended Bioinformatics Options
 
 For teams needing additional or alternative workflows, this platform aligns with common ecosystems:
