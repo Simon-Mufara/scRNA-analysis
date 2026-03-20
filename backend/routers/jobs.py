@@ -7,7 +7,7 @@ import logging
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel, ConfigDict
 
-from backend.services.job_service import JOB_STORE, analyze_job
+from backend.services.job_service import enqueue_analysis, get_task_result, map_task_status, task_progress
 
 router = APIRouter(tags=["jobs"])
 logger = logging.getLogger(__name__)
@@ -30,9 +30,7 @@ class StatusResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
     job_id: str
     status: str
-    created_at: str
-    updated_at: str
-    output_path: Optional[str] = None
+    progress: int
     error: Optional[str] = None
 
 
@@ -60,9 +58,8 @@ async def upload(file: UploadFile = File(...)):
         if not payload:
             raise HTTPException(status_code=400, detail="Uploaded file is empty.")
         out_path.write_bytes(payload)
-        job = JOB_STORE.create(str(out_path))
-        logger.info("Uploaded file stored path=%s job=%s", out_path, job.job_id)
-        payload = AnalyzeResponse(job_id=job.job_id, status=job.status, input_path=str(out_path)).model_dump()
+        logger.info("Uploaded file stored path=%s", out_path)
+        payload = AnalyzeResponse(job_id="", status="uploaded", input_path=str(out_path)).model_dump()
         return {"status": "success", "data": payload, "error": None}
     except HTTPException:
         raise
@@ -78,18 +75,14 @@ def analyze(req: AnalyzeRequest):
         raise HTTPException(status_code=404, detail="Input file not found.")
     if path.suffix.lower() not in {".h5ad", ".csv"}:
         raise HTTPException(status_code=400, detail="Only .h5ad or .csv input is supported.")
-    job = JOB_STORE.create(str(path))
     try:
-        analyze_job(job.job_id)
-        current = JOB_STORE.get(job.job_id)
-        if not current:
-            raise HTTPException(status_code=500, detail="Job disappeared unexpectedly.")
+        job_id = enqueue_analysis(str(path))
         payload = AnalyzeResponse(
-            job_id=current.job_id,
-            status=current.status,
-            input_path=current.input_path,
-            umap_coordinates=current.umap_coordinates,
-            cluster_labels=current.cluster_labels,
+            job_id=job_id,
+            status="queued",
+            input_path=str(path),
+            umap_coordinates=None,
+            cluster_labels=None,
         ).model_dump()
         return {"status": "success", "data": payload, "error": None}
     except HTTPException:
@@ -101,34 +94,32 @@ def analyze(req: AnalyzeRequest):
 
 @router.get("/status/{job_id}")
 def status(job_id: str):
-    job = JOB_STORE.get(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found.")
+    task = get_task_result(job_id)
+    status_value = map_task_status(task)
+    error_msg = str(task.result) if status_value == "failed" and task.result else None
     payload = StatusResponse(
-        job_id=job.job_id,
-        status=job.status,
-        created_at=job.created_at,
-        updated_at=job.updated_at,
-        output_path=job.output_path,
-        error=job.error,
+        job_id=job_id,
+        status=status_value,
+        progress=task_progress(task),
+        error=error_msg,
     ).model_dump()
     return {"status": "success", "data": payload, "error": None}
 
 
 @router.get("/results/{job_id}")
 def results(job_id: str):
-    job = JOB_STORE.get(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found.")
-    if job.status != "completed":
-        raise HTTPException(status_code=409, detail=f"Job is not completed (status={job.status}).")
+    task = get_task_result(job_id)
+    status_value = map_task_status(task)
+    if status_value != "completed":
+        raise HTTPException(status_code=409, detail=f"Job is not completed (status={status_value}).")
+    task_data = task.result if isinstance(task.result, dict) else {}
     payload = ResultsResponse(
-        job_id=job.job_id,
-        status=job.status,
-        output_path=job.output_path,
-        n_obs=job.n_obs,
-        n_vars=job.n_vars,
-        umap_coordinates=job.umap_coordinates,
-        cluster_labels=job.cluster_labels,
+        job_id=job_id,
+        status=status_value,
+        output_path=task_data.get("output_path"),
+        n_obs=task_data.get("n_obs"),
+        n_vars=task_data.get("n_vars"),
+        umap_coordinates=task_data.get("umap_coordinates"),
+        cluster_labels=task_data.get("cluster_labels"),
     ).model_dump()
     return {"status": "success", "data": payload, "error": None}
