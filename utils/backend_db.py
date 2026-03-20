@@ -404,7 +404,8 @@ def register_user_account(username: str, password: str, email: str, team_name: s
         return False, "Email is already linked to another account."
 
     role = "team" if team_name.strip() else "individual"
-    upsert_user(uname, role, hash_password(password), email=email_clean, email_verified=0)
+    # Keep signup UX reliable in hosted environments: users can log in immediately after account creation.
+    upsert_user(uname, role, hash_password(password), email=email_clean, email_verified=1)
     created = _get_user_row(uname)
     if not created or (created.get("email") or "").strip().lower() != email_clean:
         return False, "Failed to create account."
