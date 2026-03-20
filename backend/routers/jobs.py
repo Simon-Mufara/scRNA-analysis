@@ -5,7 +5,7 @@ from typing import Optional
 import logging
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from backend.services.job_service import JOB_STORE, analyze_job
 
@@ -18,6 +18,7 @@ class AnalyzeRequest(BaseModel):
 
 
 class AnalyzeResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     job_id: str
     status: str
     input_path: Optional[str] = None
@@ -26,6 +27,7 @@ class AnalyzeResponse(BaseModel):
 
 
 class StatusResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     job_id: str
     status: str
     created_at: str
@@ -35,6 +37,7 @@ class StatusResponse(BaseModel):
 
 
 class ResultsResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     job_id: str
     status: str
     output_path: Optional[str] = None
@@ -44,7 +47,7 @@ class ResultsResponse(BaseModel):
     cluster_labels: Optional[list[str]] = None
 
 
-@router.post("/upload", response_model=AnalyzeResponse)
+@router.post("/upload")
 async def upload(file: UploadFile = File(...)):
     suffix = Path(file.filename or "").suffix.lower()
     if suffix not in {".h5ad", ".csv"}:
@@ -59,7 +62,8 @@ async def upload(file: UploadFile = File(...)):
         out_path.write_bytes(payload)
         job = JOB_STORE.create(str(out_path))
         logger.info("Uploaded file stored path=%s job=%s", out_path, job.job_id)
-        return AnalyzeResponse(job_id=job.job_id, status=job.status, input_path=str(out_path))
+        payload = AnalyzeResponse(job_id=job.job_id, status=job.status, input_path=str(out_path)).model_dump()
+        return {"status": "success", "data": payload, "error": None}
     except HTTPException:
         raise
     except Exception as exc:
@@ -67,7 +71,7 @@ async def upload(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail="Failed to store uploaded file.")
 
 
-@router.post("/analyze", response_model=AnalyzeResponse)
+@router.post("/analyze")
 def analyze(req: AnalyzeRequest):
     path = Path(req.input_path)
     if not path.exists():
@@ -80,13 +84,14 @@ def analyze(req: AnalyzeRequest):
         current = JOB_STORE.get(job.job_id)
         if not current:
             raise HTTPException(status_code=500, detail="Job disappeared unexpectedly.")
-        return AnalyzeResponse(
+        payload = AnalyzeResponse(
             job_id=current.job_id,
             status=current.status,
             input_path=current.input_path,
             umap_coordinates=current.umap_coordinates,
             cluster_labels=current.cluster_labels,
-        )
+        ).model_dump()
+        return {"status": "success", "data": payload, "error": None}
     except HTTPException:
         raise
     except Exception as exc:
@@ -94,29 +99,30 @@ def analyze(req: AnalyzeRequest):
         raise HTTPException(status_code=500, detail="Analysis failed.")
 
 
-@router.get("/status/{job_id}", response_model=StatusResponse)
+@router.get("/status/{job_id}")
 def status(job_id: str):
     job = JOB_STORE.get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found.")
-    return StatusResponse(
+    payload = StatusResponse(
         job_id=job.job_id,
         status=job.status,
         created_at=job.created_at,
         updated_at=job.updated_at,
         output_path=job.output_path,
         error=job.error,
-    )
+    ).model_dump()
+    return {"status": "success", "data": payload, "error": None}
 
 
-@router.get("/results/{job_id}", response_model=ResultsResponse)
+@router.get("/results/{job_id}")
 def results(job_id: str):
     job = JOB_STORE.get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found.")
     if job.status != "completed":
         raise HTTPException(status_code=409, detail=f"Job is not completed (status={job.status}).")
-    return ResultsResponse(
+    payload = ResultsResponse(
         job_id=job.job_id,
         status=job.status,
         output_path=job.output_path,
@@ -124,4 +130,5 @@ def results(job_id: str):
         n_vars=job.n_vars,
         umap_coordinates=job.umap_coordinates,
         cluster_labels=job.cluster_labels,
-    )
+    ).model_dump()
+    return {"status": "success", "data": payload, "error": None}

@@ -45,7 +45,10 @@ def _analyze_via_backend(input_path: str, uploaded_file: tuple | None = None):
             )
             if resp.status_code >= 400:
                 return None, f"Upload API failed: {resp.text}"
-            backend_input_path = resp.json().get("input_path") or input_path
+            upload_json = resp.json()
+            if upload_json.get("status") != "success":
+                return None, f"Upload API failed: {upload_json.get('error') or 'unknown error'}"
+            backend_input_path = (upload_json.get("data") or {}).get("input_path") or input_path
         analyze_resp = requests.post(
             f"{base}/analyze",
             json={"input_path": backend_input_path},
@@ -53,13 +56,19 @@ def _analyze_via_backend(input_path: str, uploaded_file: tuple | None = None):
         )
         if analyze_resp.status_code >= 400:
             return None, f"Analyze API failed: {analyze_resp.text}"
-        job_id = analyze_resp.json().get("job_id")
+        analyze_json = analyze_resp.json()
+        if analyze_json.get("status") != "success":
+            return None, f"Analyze API failed: {analyze_json.get('error') or 'unknown error'}"
+        job_id = (analyze_json.get("data") or {}).get("job_id")
         if not job_id:
             return None, "Analyze API returned no job_id."
         results_resp = requests.get(f"{base}/results/{job_id}", timeout=120)
         if results_resp.status_code >= 400:
             return None, f"Results API failed: {results_resp.text}"
-        output_path = results_resp.json().get("output_path")
+        results_json = results_resp.json()
+        if results_json.get("status") != "success":
+            return None, f"Results API failed: {results_json.get('error') or 'unknown error'}"
+        output_path = (results_json.get("data") or {}).get("output_path")
         if not output_path:
             return None, "Results API returned no output_path."
         return _load_h5ad_safe(output_path), None
