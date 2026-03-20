@@ -46,6 +46,11 @@ min_genes = c1.number_input("Min genes / cell", value=QC_MIN_GENES, min_value=0,
 max_genes = c2.number_input("Max genes / cell", value=QC_MAX_GENES, min_value=100, step=100)
 min_cells = c3.number_input("Min cells / gene", value=QC_MIN_CELLS, min_value=1)
 max_mito  = c4.slider("Max % mitochondrial", 0.0, 50.0, QC_MAX_MITO_PCT, step=0.5)
+remove_doublets = st.checkbox(
+    "Run doublet detection (Scrublet)",
+    value=False,
+    help="Recommended for droplet data; requires the 'scrublet' package.",
+)
 
 # ── Pre-filter metrics ───────────────────────────────────────────────────────
 st.markdown("### 📊 Current QC Distributions")
@@ -104,7 +109,7 @@ st.divider()
 if st.button("▶ Run Quality Control Filter", type="primary"):
     with st.spinner("Filtering cells and genes..."):
         adata_qc = run_qc(adata, min_genes=min_genes, max_genes=max_genes,
-                          min_cells=min_cells, max_mito=max_mito)
+                          min_cells=min_cells, max_mito=max_mito, remove_doublets=remove_doublets)
         st.session_state["adata"] = adata_qc
         st.session_state.setdefault("pipeline_status", {})["QC"] = "done"
 
@@ -119,6 +124,8 @@ if st.button("▶ Run Quality Control Filter", type="primary"):
     c2.metric("Cells after",  f"{summary.get('cells_after', 0):,}")
     c3.metric("Removed",      f"{removed:,}")
     c4.metric("Genes remaining", f"{adata_qc.n_vars:,}")
+    if remove_doublets:
+        st.caption(f"Doublets removed: {adata_qc.uns.get('qc_summary', {}).get('doublets_removed', 0):,}")
 
     stats = get_qc_stats(adata_qc)
     st.markdown("#### Post-QC Statistics")

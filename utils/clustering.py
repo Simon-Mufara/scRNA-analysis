@@ -4,7 +4,8 @@ from config import N_TOP_GENES, N_PCS, N_NEIGHBORS, LEIDEN_RESOLUTION
 
 
 def run_clustering(adata, n_top_genes=N_TOP_GENES, n_pcs=N_PCS,
-                   n_neighbors=N_NEIGHBORS, resolution=LEIDEN_RESOLUTION):
+                   n_neighbors=N_NEIGHBORS, resolution=LEIDEN_RESOLUTION,
+                   integration_method: str = "none", batch_key: str = ""):
     """Full normalization → HVG → PCA → neighbors → UMAP → Leiden pipeline."""
     from scipy.sparse import issparse
 
@@ -52,7 +53,24 @@ def run_clustering(adata, n_top_genes=N_TOP_GENES, n_pcs=N_PCS,
     sc.pp.pca(adata, n_comps=n_pcs_actual, use_highly_variable=True)
 
     n_neighbors_actual = min(n_neighbors, adata.n_obs - 1)
-    sc.pp.neighbors(adata, n_neighbors=n_neighbors_actual, n_pcs=n_pcs_actual)
+    method = (integration_method or "none").strip().lower()
+    batch = (batch_key or "").strip()
+    if method == "harmony" and batch:
+        import scanpy.external as sce
+
+        sce.pp.harmony_integrate(adata, key=batch)
+        sc.pp.neighbors(adata, n_neighbors=n_neighbors_actual, use_rep="X_pca_harmony")
+    elif method == "bbknn" and batch:
+        import bbknn
+
+        bbknn.bbknn(adata, batch_key=batch)
+    elif method == "scanorama" and batch:
+        import scanpy.external as sce
+
+        sce.pp.scanorama_integrate(adata, key=batch)
+        sc.pp.neighbors(adata, n_neighbors=n_neighbors_actual, use_rep="X_scanorama")
+    else:
+        sc.pp.neighbors(adata, n_neighbors=n_neighbors_actual, n_pcs=n_pcs_actual)
 
     sc.tl.umap(adata)
     sc.tl.leiden(adata, resolution=resolution)

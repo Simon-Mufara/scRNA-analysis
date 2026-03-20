@@ -15,3 +15,6 @@ python-igraph>=0.10.0
 fpdf2>=2.7.0
 openpyxl>=3.1.0
 msal>=1.30.0
+scrublet>=0.2.3
+bbknn>=1.6.0
+harmonypy>=0.0.10
