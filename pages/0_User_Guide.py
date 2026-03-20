@@ -75,6 +75,39 @@ def build_user_guide_pdf() -> Optional[bytes]:
         "8) Clinical Report: Compile findings and export PDF summary."
     )
 
+    heading("Clinical Relevance by Tool")
+    body(
+        "Upload Data: Confirms the cohort and feature space are correctly loaded before interpretation. "
+        "Clinical impact: prevents downstream conclusions from wrong files or incomplete metadata.\n"
+        "Quality Control: Removes low-quality cells and technical artifacts (e.g., high mitochondrial fraction). "
+        "Clinical impact: improves reliability of detected populations and reduces false biological signals.\n"
+        "Clustering and UMAP: Identifies transcriptionally distinct cellular groups and visual separation. "
+        "Clinical impact: reveals disease-associated subpopulations and heterogeneity relevant to prognosis/therapy.\n"
+        "Cell Type Annotation: Maps clusters to biological identities using marker evidence and model support. "
+        "Clinical impact: links molecular clusters to interpretable cell compartments for pathology and immune context.\n"
+        "Gene Explorer: Visualizes expression of genes of interest across clusters/cell types. "
+        "Clinical impact: supports validation of biomarkers, target expression, and mechanism hypotheses.\n"
+        "Differential Expression: Quantifies genes enriched between groups or states. "
+        "Clinical impact: prioritizes candidate biomarkers and therapeutic targets with statistical support.\n"
+        "Pathway Analysis: Converts gene lists into pathway-level biology (e.g., immune activation, cell-cycle). "
+        "Clinical impact: supports mechanistic interpretation and translational narrative building.\n"
+        "Clinical Report: Consolidates evidence into a communication-ready summary. "
+        "Clinical impact: improves multidisciplinary review, reproducibility, and handoff quality."
+    )
+
+    heading("How to Read Each Output")
+    body(
+        "Quality Control: Use distributions/thresholds to confirm retained cells match expected tissue quality; "
+        "investigate aggressive filtering that removes biologically plausible populations.\n"
+        "Clustering/UMAP: Treat UMAP distances as neighborhood cues, not absolute lineage distance; "
+        "confirm clusters with marker genes before naming.\n"
+        "Annotation: Prefer labels supported by multiple canonical markers; mark low-confidence clusters for review.\n"
+        "Gene Explorer: Compare both expression intensity and fraction of expressing cells across clusters.\n"
+        "Differential Expression: Prioritize genes with strong effect size and corrected significance, then validate externally.\n"
+        "Pathway Analysis: Focus on coherent pathway themes across top terms rather than a single enriched term.\n"
+        "Report: Separate exploratory findings from clinically actionable statements and document assumptions."
+    )
+
     heading("Input and Output Expectations")
     body(
         "Inputs: AnnData-compatible files, optional metadata annotations, and marker gene context.\n"
@@ -155,6 +188,63 @@ with left:
 - Record assumptions and limitations in your final report notes.
 """
     )
+    st.markdown("### Clinical Relevance and Interpretation by Module")
+    with st.expander("1) Quality Control (QC): why it matters clinically", expanded=False):
+        st.markdown(
+            """
+- Removes noisy or stressed cells that can mislead interpretation.
+- Check retained cell counts and mitochondrial trends to avoid over-filtering clinically relevant rare populations.
+- Treat QC as reliability control: poor QC can create false biomarker signals.
+"""
+        )
+    with st.expander("2) Clustering and UMAP: how to interpret structure", expanded=False):
+        st.markdown(
+            """
+- Clusters represent transcriptionally similar groups, often corresponding to biologically meaningful subtypes.
+- UMAP is for visual neighborhood structure; distance is not a direct quantitative biological distance.
+- Clinical use: identify heterogeneity (e.g., resistant subclones, immune states) for downstream review.
+"""
+        )
+    with st.expander("3) Cell Type Annotation: confidence and caveats", expanded=False):
+        st.markdown(
+            """
+- Use annotation as a hypothesis supported by marker genes, not a final truth by itself.
+- Highest confidence comes from agreement across marker genes, model outputs, and tissue context.
+- Flag ambiguous clusters as mixed/uncertain for expert adjudication.
+"""
+        )
+    with st.expander("4) Gene Explorer: reading expression patterns", expanded=False):
+        st.markdown(
+            """
+- Assess both expression intensity and the proportion of cells expressing each gene.
+- Compare across cell types/clusters to validate biomarker specificity.
+- Clinical use: support target validation and phenotype characterization.
+"""
+        )
+    with st.expander("5) Differential Expression: prioritizing findings", expanded=False):
+        st.markdown(
+            """
+- Combine adjusted p-values with effect size when prioritizing genes.
+- Validate top genes against known biology and orthogonal assays where possible.
+- Clinical use: shortlist candidate biomarkers and mechanisms for translational follow-up.
+"""
+        )
+    with st.expander("6) Pathway Analysis: turning genes into mechanisms", expanded=False):
+        st.markdown(
+            """
+- Interpret enriched pathways as biological themes, not isolated proof.
+- Look for consistency across related pathways (immune signaling, proliferation, metabolism).
+- Clinical use: frame molecular findings into disease-relevant mechanisms and therapeutic hypotheses.
+"""
+        )
+    with st.expander("7) Clinical Report: communication standards", expanded=False):
+        st.markdown(
+            """
+- Summarize methods, thresholds, key findings, and limitations.
+- Clearly separate exploratory observations from potentially actionable insights.
+- Use this report to support multidisciplinary review, not as a standalone diagnostic decision tool.
+"""
+        )
     with st.expander("Before Upload: How to prepare .h5ad/.loom input files", expanded=False):
         st.markdown(
             """
@@ -175,6 +265,20 @@ with left:
             - Clustering: Leiden/Louvain alternatives depending on study design
             - Annotation: marker-based scoring + CellTypist + manual label curation
             - Pathways: Enrichr sets, Reactome/GO alternatives, rank-based enrichment
+            """
+        )
+    with st.expander("Broader bioinformatics ecosystem (equivalent tools)", expanded=False):
+        st.markdown(
+            """
+            Use these tools for cross-validation or team preference alignment:
+            - **R / Seurat ecosystem:** Seurat, Azimuth, SingleR, DoubletFinder, harmony.
+            - **Python ecosystem:** Scanpy/scverse, scVI-tools, BBKNN, Scanorama, decoupler.
+            - **Cell type references:** CellTypist models, curated marker atlases, tissue-specific references.
+            - **Pathway/genesets:** gseapy, fgsea, clusterProfiler, ReactomePA.
+            - **Interoperability:** Keep `.h5ad` as primary exchange format; export CSV summaries for reviewers.
+
+            Recommended practice: validate major conclusions with at least one independent method
+            (e.g., CellTypist + marker-based annotation, or Leiden + Harmony-integrated re-analysis).
             """
         )
 

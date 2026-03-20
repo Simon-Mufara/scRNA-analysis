@@ -196,7 +196,7 @@ def inject_global_css():
         border-radius: 8px !important;
         margin: 2px 0 !important;
         padding: 8px 12px !important;
-        color: #6E7681 !important;
+        color: #A1ABB8 !important;
         font-size: 0.85rem !important;
         font-weight: 500 !important;
         letter-spacing: -0.01em !important;
@@ -206,7 +206,7 @@ def inject_global_css():
     }
     [data-testid="stSidebarNavItems"] a:hover {
         background: rgba(0,212,255,0.06) !important;
-        color: #C9D1D9 !important;
+        color: #E6EDF3 !important;
         border-color: rgba(0,212,255,0.12) !important;
     }
     [data-testid="stSidebarNavItems"] a[aria-current="page"] {
@@ -234,7 +234,7 @@ def inject_global_css():
         font-size: 1.35rem !important;
     }
     h3 {
-        color: #8B949E !important;
+        color: #C9D1D9 !important;
         font-weight: 600 !important;
         letter-spacing: -0.01em !important;
         font-size: 1rem !important;
@@ -261,7 +261,7 @@ def inject_global_css():
         letter-spacing: -0.03em !important;
     }
     [data-testid="stMetricLabel"] {
-        color: #6E7681 !important;
+        color: #9AA4AF !important;
         font-size: 0.75rem !important;
         text-transform: uppercase !important;
         letter-spacing: 0.08em !important;
@@ -278,7 +278,7 @@ def inject_global_css():
     /* ── Buttons ─────────────────────────────── */
     [data-testid="baseButton-primary"] {
         background: linear-gradient(135deg, #00D4FF 0%, #0099BB 100%) !important;
-        color: #000000 !important;
+        color: #0B1220 !important;
         font-weight: 700 !important;
         font-size: 0.875rem !important;
         letter-spacing: -0.01em !important;
@@ -314,7 +314,7 @@ def inject_global_css():
         padding: 0 !important;
     }
     [data-testid="stTabs"] [data-baseweb="tab"] {
-        color: #6E7681 !important;
+        color: #A9B2BD !important;
         font-weight: 500 !important;
         font-size: 0.875rem !important;
         padding: 10px 18px !important;

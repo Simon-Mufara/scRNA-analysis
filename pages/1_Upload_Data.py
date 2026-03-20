@@ -175,29 +175,38 @@ with tab_upload:
             st.stop()
 
         file_size_mb = file.size / (1024 ** 2)
-        st.info(f"📦 File: **{file.name}** ({file_size_mb:,.1f} MB) — reading...")
+        st.info(f"📦 File: **{file.name}** ({file_size_mb:,.1f} MB) — processing...")
         tmp_path = None
         with st.spinner("Loading dataset into memory..."):
             try:
                 suffix = ".loom" if file.name.lower().endswith(".loom") else ".h5ad"
-                temp_dir = tempfile.gettempdir()
-                _ensure_disk_space(file.size, temp_dir)
-
-                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix, dir=temp_dir) as tmp:
-                    # Stream in chunks to avoid loading huge uploads into RAM at once.
-                    chunk_size = 64 * 1024 * 1024  # 64 MB
-                    file.seek(0)
-                    while True:
-                        chunk = file.read(chunk_size)
-                        if not chunk:
-                            break
-                        tmp.write(chunk)
-                    tmp_path = tmp.name
-
-                if suffix == ".loom":
-                    adata = sc.read_loom(tmp_path)
+                if file_size_mb <= 512:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix, dir=tempfile.gettempdir()) as tmp:
+                        tmp.write(file.getbuffer())
+                        tmp_path = tmp.name
+                    if suffix == ".loom":
+                        adata = sc.read_loom(tmp_path)
+                    else:
+                        adata = _load_h5ad_safe(tmp_path)
                 else:
-                    adata = _load_h5ad_safe(tmp_path)
+                    temp_dir = tempfile.gettempdir()
+                    _ensure_disk_space(file.size, temp_dir)
+
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix, dir=temp_dir) as tmp:
+                        # Stream in larger chunks to reduce write overhead for very large uploads.
+                        chunk_size = 128 * 1024 * 1024  # 128 MB
+                        file.seek(0)
+                        while True:
+                            chunk = file.read(chunk_size)
+                            if not chunk:
+                                break
+                            tmp.write(chunk)
+                        tmp_path = tmp.name
+
+                    if suffix == ".loom":
+                        adata = sc.read_loom(tmp_path)
+                    else:
+                        adata = _load_h5ad_safe(tmp_path)
             except MemoryError:
                 st.error(
                     "The dataset is too large to load fully into memory in this environment. "

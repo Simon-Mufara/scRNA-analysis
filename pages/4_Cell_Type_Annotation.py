@@ -108,6 +108,46 @@ with tab_marker:
                 st.error(f"Scoring failed: {e}")
                 st.info("Tip: ensure normalization/log1p was applied in Step 3.")
 
+    if "marker_scores" in getattr(adata, "uns", {}) and "cell_type_conf" in adata.obs.columns:
+        if st.button("🔗 Build Consensus Labels (Marker + CellTypist)", key="run_consensus"):
+            with st.spinner("Combining marker and CellTypist annotations..."):
+                try:
+                    adata = score_marker_genes(
+                        adata,
+                        score_threshold=threshold,
+                        label_col="marker_cell_type",
+                        score_col="marker_annotation_score",
+                        store_key="marker_scores_consensus",
+                    )
+                    marker_scores = adata.obs["marker_annotation_score"].astype(float)
+                    marker_norm = (marker_scores - marker_scores.min()) / (marker_scores.max() - marker_scores.min() + 1e-9)
+                    ct_conf = adata.obs["cell_type_conf"].astype(float).clip(0.0, 1.0)
+                    consensus = []
+                    consensus_conf = []
+                    for idx in adata.obs_names:
+                        ct_label = str(adata.obs.at[idx, "cell_type"])
+                        mk_label = str(adata.obs.at[idx, "marker_cell_type"])
+                        c_conf = float(ct_conf.loc[idx])
+                        m_conf = float(marker_norm.loc[idx])
+                        if ct_label == mk_label:
+                            consensus.append(ct_label)
+                            consensus_conf.append(round(max(c_conf, m_conf), 4))
+                        elif c_conf >= m_conf + 0.15:
+                            consensus.append(ct_label)
+                            consensus_conf.append(round(c_conf, 4))
+                        elif m_conf >= c_conf + 0.15:
+                            consensus.append(mk_label)
+                            consensus_conf.append(round(m_conf, 4))
+                        else:
+                            consensus.append(f"Ambiguous ({ct_label} vs {mk_label})")
+                            consensus_conf.append(round(max(c_conf, m_conf), 4))
+                    adata.obs["cell_type_consensus"] = pd.Series(consensus, index=adata.obs_names, dtype="string")
+                    adata.obs["cell_type_consensus_conf"] = pd.Series(consensus_conf, index=adata.obs_names, dtype="float64")
+                    st.session_state["adata"] = adata
+                    st.success("✅ Consensus labels created in `cell_type_consensus`.")
+                except Exception as e:
+                    st.error(f"Consensus labeling failed: {e}")
+
     # Show heatmap of cluster × cell type scores
     if "marker_scores" in getattr(adata, "uns", {}):
         st.markdown("#### 🔥 Cluster × Cell Type Score Heatmap")
@@ -130,6 +170,14 @@ with tab_marker:
                 plot_bgcolor="#161B22",
             )
             st.plotly_chart(fig, use_container_width=True)
+
+    if "cell_type_consensus" in adata.obs.columns:
+        st.markdown("#### Consensus Label Summary")
+        consensus_counts = adata.obs["cell_type_consensus"].value_counts().reset_index()
+        consensus_counts.columns = ["Consensus Label", "# Cells"]
+        st.dataframe(consensus_counts, use_container_width=True)
+        ambiguous_n = int((adata.obs["cell_type_consensus"].astype(str).str.startswith("Ambiguous")).sum())
+        st.metric("Ambiguous Cells", f"{ambiguous_n:,}")
 
 # ──────────────────────────────────────────────────────────────────────────────
 # TAB 2 — CellTypist AI
@@ -160,7 +208,7 @@ with tab_celltypist:
         ("Healthy_Adult_Heart.pkl",     "Heart — 8 anatomical regions"),
     ]
 
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4 = st.columns(4)
     model_choice = c1.selectbox(
         "Model",
         options=[m[0] for m in CELLTYPIST_MODELS],
@@ -175,10 +223,23 @@ with tab_celltypist:
         "Majority voting", value=True,
         help="Use cluster-level majority vote for more consistent labels (recommended)"
     )
+    min_ct_conf = c3.slider(
+        "Minimum CellTypist confidence",
+        0.0,
+        1.0,
+        0.50,
+        0.05,
+        help="Predictions below this threshold are set to Unassigned.",
+    )
     c3.markdown("""
     <br>
     <a href="https://www.celltypist.org/models" target="_blank"
        style="color:#00D4FF;font-size:0.85rem;">📚 Browse all 60+ models →</a>
+    """, unsafe_allow_html=True)
+    c4.markdown("""
+    <br>
+    <a href="https://www.celltypist.org/models" target="_blank"
+       style="color:#00D4FF;font-size:0.85rem;">🧠 Model docs</a>
     """, unsafe_allow_html=True)
 
     if st.button("▶ Run CellTypist Annotation", type="primary", key="run_ct"):
@@ -186,6 +247,8 @@ with tab_celltypist:
             try:
                 adata = annotate_cells(adata, model_name=model_choice,
                                        majority_voting=majority_voting)
+                low_conf_mask = adata.obs["cell_type_conf"].astype(float) < float(min_ct_conf)
+                adata.obs.loc[low_conf_mask, "cell_type"] = "Unassigned"
                 st.session_state["adata"] = adata
                 st.session_state.setdefault("pipeline_status", {})["Annotation"] = "done"
                 n_types = adata.obs["cell_type"].nunique()
@@ -333,6 +396,17 @@ if "cell_type" in adata.obs.columns:
 
     st.markdown("#### Cell Type Table")
     st.dataframe(counts, use_container_width=True)
+
+    st.markdown("#### Tooling Options (for broader workflows)")
+    st.markdown(
+        """
+- **Annotation alternatives:** SingleR, scANVI/scVI-tools, Azimuth/Seurat reference mapping, scmap.
+- **Doublet detection:** Scrublet, DoubletFinder.
+- **Batch integration options:** Harmony, BBKNN, Scanorama, Seurat integration.
+- **Pathway alternatives:** fgsea, clusterProfiler, decoupler.
+Use alternatives for cross-validation when results are clinically sensitive.
+"""
+    )
 
     csv = counts.to_csv(index=False).encode()
     st.download_button("⬇️ Download Cell Type Summary (CSV)", data=csv,

@@ -15,6 +15,13 @@ def _now_utc():
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
 
+def _parse_utc(ts: str):
+    try:
+        return datetime.strptime((ts or "").strip(), "%Y-%m-%d %H:%M UTC").replace(tzinfo=timezone.utc)
+    except Exception:
+        return None
+
+
 def get_conn():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
@@ -308,6 +315,53 @@ def emergency_reset_platform_admin():
     return True
 
 
+def reset_login_data_keep_user(username_to_keep: str):
+    """Remove all auth/login details except one retained user account."""
+    init_db()
+    keep_uname = (username_to_keep or "").strip().lower()
+    if not keep_uname:
+        return False, "A username to keep is required.", {}
+    keep_user = _get_user_row(keep_uname)
+    if not keep_user:
+        return False, "User to keep was not found.", {}
+
+    with get_conn() as conn:
+        removed_memberships = conn.execute(
+            """
+            DELETE FROM team_memberships
+            WHERE user_id IN (SELECT id FROM users WHERE username != ?)
+            """,
+            (keep_uname,),
+        ).rowcount
+        removed_sessions = conn.execute(
+            "DELETE FROM user_sessions WHERE username != ?",
+            (keep_uname,),
+        ).rowcount
+        removed_tokens = conn.execute(
+            "DELETE FROM auth_tokens WHERE username != ?",
+            (keep_uname,),
+        ).rowcount
+        removed_users = conn.execute(
+            "DELETE FROM users WHERE username != ?",
+            (keep_uname,),
+        ).rowcount
+        removed_teams = conn.execute(
+            "DELETE FROM teams WHERE id NOT IN (SELECT DISTINCT team_id FROM team_memberships)",
+        ).rowcount
+        conn.execute(
+            "UPDATE users SET is_active = 1 WHERE username = ?",
+            (keep_uname,),
+        )
+
+    return True, None, {
+        "removed_users": removed_users or 0,
+        "removed_sessions": removed_sessions or 0,
+        "removed_tokens": removed_tokens or 0,
+        "removed_memberships": removed_memberships or 0,
+        "removed_teams": removed_teams or 0,
+    }
+
+
 def get_user_team(username: str):
     rows = fetch_rows(
         """
@@ -400,7 +454,7 @@ def authenticate_user_account(username: str, password: str, login_mode: str, tea
     uname = user["username"]
     if not user.get("is_active"):
         return None, "Account is inactive."
-    if not user.get("email_verified"):
+    if not user.get("email_verified") and require_verified_email_for_login():
         return None, "Email is not verified. Verify your email before login."
     if not verify_password(password, user.get("password_hash", "")):
         return None, "Invalid username or password."
@@ -422,6 +476,15 @@ def authenticate_user_account(username: str, password: str, login_mode: str, tea
 
     role = user.get("role", "individual")
     return {"username": uname, "email": user.get("email"), "role": role, "team": team}, None
+
+
+def _is_truthy(value):
+    return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def require_verified_email_for_login():
+    # Backward compatible default: existing accounts can log in unless enforcement is explicitly enabled.
+    return _is_truthy(get_system_setting("auth.require_email_verification", "0"))
 
 
 def _token_hash(raw_token: str):
@@ -732,4 +795,19 @@ def get_active_session(session_id: str):
         """,
         (session_id,),
     )
-    return rows[0] if rows else None
+    if not rows:
+        return None
+    session = rows[0]
+    timeout_raw = get_system_setting("auth.session_timeout_minutes", "720")
+    try:
+        timeout_minutes = max(5, int(timeout_raw))
+    except ValueError:
+        timeout_minutes = 720
+    last_seen = _parse_utc(session.get("last_seen_at") or session.get("login_at"))
+    if not last_seen:
+        return session
+    age_minutes = (datetime.now(timezone.utc) - last_seen).total_seconds() / 60.0
+    if age_minutes > timeout_minutes:
+        end_user_session(session_id)
+        return None
+    return session

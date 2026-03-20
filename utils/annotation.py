@@ -30,7 +30,14 @@ CANONICAL_MARKERS = {
 }
 
 
-def score_marker_genes(adata, ctrl_size: int = 50, score_threshold: float = 0.0):
+def score_marker_genes(
+    adata,
+    ctrl_size: int = 50,
+    score_threshold: float = 0.0,
+    label_col: str = "cell_type",
+    score_col: str = "annotation_score",
+    store_key: str = "marker_scores",
+):
     """
     Score each cell against canonical marker gene sets using sc.tl.score_genes.
     Assigns 'cell_type' based on the highest-scoring marker set.
@@ -57,14 +64,14 @@ def score_marker_genes(adata, ctrl_size: int = 50, score_threshold: float = 0.0)
         {ct: adata.obs[col] for ct, col in score_cols},
         index=adata.obs_names
     )
-    adata.obs["cell_type"] = score_df.idxmax(axis=1).astype(str)
-    adata.obs["annotation_score"] = score_df.max(axis=1)
+    adata.obs[label_col] = score_df.idxmax(axis=1).astype(str)
+    adata.obs[score_col] = score_df.max(axis=1)
     # Mark low-confidence cells
     if score_threshold > 0:
-        mask = adata.obs["annotation_score"] < score_threshold
-        adata.obs.loc[mask, "cell_type"] = "Unassigned"
+        mask = adata.obs[score_col] < score_threshold
+        adata.obs.loc[mask, label_col] = "Unassigned"
 
-    adata.uns["marker_scores"] = score_df
+    adata.uns[store_key] = score_df
     return adata
 
 
@@ -112,11 +119,10 @@ def manual_annotate(adata, cluster_map: dict):
     return adata
 
 
-def get_cluster_marker_scores(adata) -> pd.DataFrame:
+def get_cluster_marker_scores(adata, store_key: str = "marker_scores") -> pd.DataFrame:
     """Return per-cluster mean score for each canonical cell type."""
-    if "marker_scores" not in adata.uns:
+    if store_key not in adata.uns:
         return pd.DataFrame()
-    score_df = adata.uns["marker_scores"].copy()
+    score_df = adata.uns[store_key].copy()
     score_df["cluster"] = adata.obs["leiden"].astype(str).values
     return score_df.groupby("cluster").mean().T
-
