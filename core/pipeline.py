@@ -1,6 +1,7 @@
 from anndata import AnnData
 import pandas as pd
 import scanpy as sc
+from pathlib import Path
 
 from core.clustering import run_clustering_step
 from core.preprocessing import load_h5ad_safe, load_input_dataset
@@ -8,7 +9,13 @@ from core.qc import compute_qc_metrics, run_qc_filter
 
 
 def run_pipeline(file_path: str) -> AnnData:
-    adata = load_h5ad_safe(file_path)
+    suffix = Path(file_path).suffix.lower()
+    if suffix == ".csv":
+        adata = load_input_dataset(file_path, ".csv")
+    elif suffix == ".loom":
+        adata = load_input_dataset(file_path, ".loom")
+    else:
+        adata = load_h5ad_safe(file_path)
     adata = compute_qc_metrics(adata)
     adata = run_qc_filter(
         adata,
