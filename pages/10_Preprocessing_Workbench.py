@@ -3,9 +3,9 @@ import tempfile
 from pathlib import Path
 
 import pandas as pd
-import scanpy as sc
 import streamlit as st
 
+from core.preprocessing import load_h5ad_safe, load_input_dataset, validate_prepared_adata
 from utils.styles import inject_global_css, page_header, render_sidebar
 
 st.set_page_config(page_title="Preprocessing Workbench", layout="wide")
@@ -99,11 +99,11 @@ with tab_convert:
                 st.error("Output path is required.")
             else:
                 if input_mode == "10x matrix directory":
-                    adata = sc.read_10x_mtx(source_path, var_names="gene_symbols")
+                    adata = load_input_dataset(source_path, ".mtx")
                 elif input_mode == "CSV matrix file":
-                    adata = sc.read_csv(source_path).T
+                    adata = load_input_dataset(source_path, ".csv")
                 else:
-                    adata = sc.read_h5ad(source_path)
+                    adata = load_h5ad_safe(source_path)
                 adata.write_h5ad(output_path)
                 msg = f"✅ Saved .h5ad: {output_path} ({adata.n_obs:,} cells × {adata.n_vars:,} genes)"
                 if make_loom:
@@ -124,17 +124,10 @@ with tab_validate:
             else:
                 suffix = Path(val_path).suffix.lower()
                 if suffix == ".loom":
-                    adata = sc.read_loom(val_path)
+                    adata = load_input_dataset(val_path, ".loom")
                 else:
-                    adata = sc.read_h5ad(val_path)
-                checks = {
-                    "Cells > 0": adata.n_obs > 0,
-                    "Genes > 0": adata.n_vars > 0,
-                    "Unique cell IDs": adata.obs_names.is_unique,
-                    "Unique gene IDs": adata.var_names.is_unique,
-                    "No missing obs column names": not adata.obs.columns.isnull().any(),
-                    "No missing var column names": not adata.var.columns.isnull().any(),
-                }
+                    adata = load_h5ad_safe(val_path)
+                checks = validate_prepared_adata(adata)
                 rows = [{"check": k, "status": "PASS" if v else "FAIL"} for k, v in checks.items()]
                 st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
                 if all(checks.values()):

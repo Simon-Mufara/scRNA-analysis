@@ -1,11 +1,10 @@
 import streamlit as st
-import scanpy as sc
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-from utils.preprocessing import run_qc, get_qc_stats
+from core.qc import compute_qc_metrics, run_qc_filter, get_qc_stats
 from utils.visualization import violin_qc
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, PLOTLY_TEMPLATE
 from config import QC_MIN_GENES, QC_MAX_GENES, QC_MIN_CELLS, QC_MAX_MITO_PCT
@@ -34,9 +33,7 @@ if adata is None:
 # Compute QC metrics if not already done
 if "pct_counts_mt" not in adata.obs.columns:
     with st.spinner("Computing QC metrics..."):
-        adata.var["mt"] = adata.var_names.str.upper().str.startswith("MT-")
-        sc.pp.calculate_qc_metrics(adata, qc_vars=["mt"], percent_top=None,
-                                   log1p=False, inplace=True)
+        adata = compute_qc_metrics(adata)
         st.session_state["adata"] = adata
 
 # ── Parameters ───────────────────────────────────────────────────────────────
@@ -108,8 +105,14 @@ if "pct_counts_mt" in adata.obs.columns:
 st.divider()
 if st.button("▶ Run Quality Control Filter", type="primary"):
     with st.spinner("Filtering cells and genes..."):
-        adata_qc = run_qc(adata, min_genes=min_genes, max_genes=max_genes,
-                          min_cells=min_cells, max_mito=max_mito, remove_doublets=remove_doublets)
+        adata_qc = run_qc_filter(
+            adata,
+            min_genes=min_genes,
+            max_genes=max_genes,
+            min_cells=min_cells,
+            max_mito=max_mito,
+            remove_doublets=remove_doublets,
+        )
         st.session_state["adata"] = adata_qc
         st.session_state.setdefault("pipeline_status", {})["QC"] = "done"
 

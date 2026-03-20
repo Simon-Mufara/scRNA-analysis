@@ -4,90 +4,11 @@ import pandas as pd
 import os
 import shutil
 import tempfile
-import h5py
 
+from core.preprocessing import load_h5ad_safe as _load_h5ad_safe
+from core.preprocessing import load_input_dataset, load_demo_dataset
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons
 from utils.auth import get_current_user
-
-# ── Register missing null-encoding reader (for files with None values in uns) ──
-try:
-    from anndata._io.specs.registry import _REGISTRY
-    from anndata._io.specs import IOSpec as _IOSpec
-    import h5py as _h5py
-
-    _null_spec = _IOSpec("null", "0.1.0")
-
-    @_REGISTRY.register_read(_h5py.Dataset, _null_spec)
-    def _read_null_ds(elem):
-        return None
-
-    @_REGISTRY.register_read(_h5py.Group, _null_spec)
-    def _read_null_grp(elem):
-        return None
-except Exception:
-    pass  # already registered or future anndata handles it natively
-
-
-def _load_h5ad_safe(path: str):
-    """Load h5ad with progressive fallback strategies."""
-    # Strategy 1: normal read
-    try:
-        return sc.read_h5ad(path)
-    except Exception as e1:
-        if "null" not in str(e1).lower() and "IORegistryError" not in str(type(e1).__name__):
-            raise
-
-    # Strategy 2: backed read (memory-maps the file, avoids parsing problematic uns)
-    try:
-        adata = sc.read_h5ad(path, backed="r")
-        adata = adata.to_memory()
-        return adata
-    except Exception:
-        pass
-
-    # Strategy 3: read X / obs / var directly via h5py (no pytables needed)
-    import anndata as ad
-    import scipy.sparse as sp
-    import numpy as np
-
-    def _h5_to_df(grp) -> pd.DataFrame:
-        """Convert an h5py Group (AnnData obs/var) to a DataFrame."""
-        cols = {}
-        index = None
-        for key in grp.keys():
-            val = grp[key]
-            if isinstance(val, h5py.Dataset):
-                try:
-                    arr = val[()]
-                    if arr.dtype.kind in ("S", "O"):
-                        arr = arr.astype(str)
-                    cols[key] = arr
-                except Exception:
-                    pass
-        idx_name = grp.attrs.get("_index", None)
-        if idx_name and idx_name in cols:
-            index = cols.pop(idx_name)
-        elif "_index" in grp:
-            raw = grp["_index"][()]
-            index = raw.astype(str) if raw.dtype.kind in ("S", "O") else raw
-        return pd.DataFrame(cols, index=index)
-
-    with h5py.File(path, "r") as f:
-        x_group = f["X"]
-        if isinstance(x_group, h5py.Dataset):
-            X = x_group[()]
-        else:
-            data    = x_group["data"][()]
-            indices = x_group["indices"][()]
-            indptr  = x_group["indptr"][()]
-            shape   = tuple(x_group.attrs.get("shape", (len(indptr) - 1, indices.max() + 1)))
-            X = sp.csr_matrix((data, indices, indptr), shape=shape)
-
-        obs = _h5_to_df(f["obs"]) if "obs" in f else pd.DataFrame()
-        var = _h5_to_df(f["var"]) if "var" in f else pd.DataFrame()
-
-    adata = ad.AnnData(X=X, obs=obs, var=var)
-    return adata
 
 
 def _safe_unlink(path: str):
@@ -262,14 +183,13 @@ with tab_path:
             with st.spinner(f"Reading {size_gb:.2f} GB file..."):
                 try:
                     if ".loom" in fmt:
-                        adata = sc.read_loom(file_path)
+                        adata = load_input_dataset(file_path, ".loom")
                     elif ".csv" in fmt:
-                        adata = sc.read_csv(file_path).T
+                        adata = load_input_dataset(file_path, ".csv")
                     elif ".mtx" in fmt:
-                        mtx_dir = os.path.dirname(file_path)
-                        adata = sc.read_10x_mtx(mtx_dir, var_names="gene_symbols")
+                        adata = load_input_dataset(file_path, ".mtx")
                     else:
-                        adata = _load_h5ad_safe(file_path)
+                        adata = load_input_dataset(file_path, ".h5ad")
 
                     st.session_state["adata"] = adata
                     st.session_state.setdefault("pipeline_status", {})["Upload"] = "done"
@@ -289,7 +209,7 @@ with tab_example:
     with col_a:
         if st.button("🔬 Load PBMC 3k", type="primary"):
             with st.spinner("Downloading PBMC 3k (~60 MB)..."):
-                adata = sc.datasets.pbmc3k()
+                adata = load_demo_dataset()
             st.session_state["adata"] = adata
             st.session_state.setdefault("pipeline_status", {})["Upload"] = "done"
             st.success("✅ PBMC 3k loaded!")

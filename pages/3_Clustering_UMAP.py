@@ -2,7 +2,7 @@ import streamlit as st
 import plotly.express as px
 import pandas as pd
 
-from utils.clustering import run_clustering
+from core.clustering import run_clustering_step
 from utils.visualization import umap_plot
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, PALETTE, PLOTLY_TEMPLATE
 from config import N_TOP_GENES, N_PCS, N_NEIGHBORS, LEIDEN_RESOLUTION
@@ -59,9 +59,15 @@ if st.button("▶ Run Full Clustering Pipeline", type="primary"):
         prog.progress((i + 1) / len(steps), text=f"{step}...")
 
     with st.spinner("Running clustering pipeline..."):
-        adata = run_clustering(adata, n_top_genes=n_top, n_pcs=n_pcs,
-                               n_neighbors=n_nb, resolution=res,
-                               integration_method=integration_method, batch_key=batch_key)
+        adata = run_clustering_step(
+            adata,
+            n_top_genes=n_top,
+            n_pcs=n_pcs,
+            n_neighbors=n_nb,
+            resolution=res,
+            integration_method=integration_method,
+            batch_key=batch_key,
+        )
         st.session_state["adata"] = adata
         st.session_state.setdefault("pipeline_status", {})["Clustering"] = "done"
 
