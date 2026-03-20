@@ -1,6 +1,8 @@
 import os
 import smtplib
 from email.message import EmailMessage
+from email.utils import formataddr
+from urllib.parse import urlencode
 
 
 def _cfg(key: str, default: str = ""):
@@ -62,8 +64,11 @@ def send_email(to_email: str, subject: str, text_body: str, html_body: str = "")
         return False, "SMTP is not configured."
     msg = EmailMessage()
     msg["Subject"] = subject
-    msg["From"] = _cfg("SMTP_FROM_EMAIL")
+    from_email = _cfg("SMTP_FROM_EMAIL")
+    msg["From"] = formataddr(("SingleCell Explorer", from_email))
     msg["To"] = (to_email or "").strip().lower()
+    msg["Reply-To"] = from_email
+    msg["X-Product"] = "SingleCell Clinical & Research Explorer"
     msg.set_content(text_body)
     if html_body:
         msg.add_alternative(html_body, subtype="html")
@@ -111,39 +116,98 @@ def get_mail_diagnostics():
 
 
 def _public_base_url():
-    return _cfg("APP_PUBLIC_URL", "").strip().rstrip("/")
+    base = _cfg("APP_PUBLIC_URL", "").strip().rstrip("/")
+    if base and not base.lower().startswith(("http://", "https://")):
+        base = f"https://{base}"
+    return base
+
+
+def _build_app_url(base: str, params: dict):
+    if not base:
+        return ""
+    q = urlencode({k: v for k, v in params.items() if str(v or "").strip()})
+    if not q:
+        return base
+    sep = "&" if "?" in base else "?"
+    return f"{base}{sep}{q}"
+
+
+def _brand_html_email(title: str, subtitle: str, body_html: str, cta_label: str = "", cta_url: str = "", code: str = ""):
+    cta_block = (
+        f"<p style='margin:20px 0;'><a href='{cta_url}' "
+        "style='background:#00D4FF;color:#0B1220;text-decoration:none;padding:10px 16px;"
+        "border-radius:8px;font-weight:700;display:inline-block;'>"
+        f"{cta_label}</a></p>"
+        if cta_label and cta_url
+        else ""
+    )
+    code_block = (
+        f"<p style='margin:10px 0 0;color:#8B949E;'>One-time code:</p>"
+        f"<div style='font-size:22px;font-weight:800;letter-spacing:0.08em;color:#E6EDF3;"
+        f"background:#0D1117;border:1px solid #30363D;border-radius:8px;padding:10px 12px;"
+        f"display:inline-block;'>{code}</div>"
+        if code
+        else ""
+    )
+    return f"""
+    <html>
+      <body style="margin:0;padding:0;background:#070B14;font-family:Inter,Arial,sans-serif;color:#E6EDF3;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#070B14;padding:24px 0;">
+          <tr><td align="center">
+            <table role="presentation" width="620" cellpadding="0" cellspacing="0" style="max-width:620px;background:#0D1117;border:1px solid #21262D;border-radius:12px;overflow:hidden;">
+              <tr>
+                <td style="padding:16px 22px;background:linear-gradient(135deg,rgba(0,212,255,0.2),rgba(123,47,190,0.2));border-bottom:1px solid #21262D;">
+                  <div style="font-size:16px;font-weight:800;color:#E6EDF3;">SingleCell Clinical &amp; Research Explorer</div>
+                  <div style="font-size:12px;color:#C9D1D9;margin-top:4px;">{subtitle}</div>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:22px;">
+                  <h2 style="margin:0 0 10px;font-size:22px;color:#E6EDF3;">{title}</h2>
+                  <div style="font-size:14px;line-height:1.7;color:#C9D1D9;">{body_html}</div>
+                  {code_block}
+                  {cta_block}
+                  <p style="margin-top:20px;font-size:12px;color:#8B949E;">
+                    If you did not request this action, you can safely ignore this email.
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td></tr>
+        </table>
+      </body>
+    </html>
+    """
 
 
 def send_verification_email(to_email: str, username: str, token: str):
     base = _public_base_url()
-    verify_url = f"{base}?verify_user={username}&verify_token={token}" if base else ""
+    verify_url = _build_app_url(base, {"verify_user": username, "verify_token": token})
     body = (
         f"Hello {username},\n\n"
-        "Welcome to SingleCell Explorer.\n\n"
-        "To verify your email, use this one-time verification token:\n"
+        "Welcome to SingleCell Clinical & Research Explorer.\n\n"
+        "Your account was created successfully.\n"
+        "Please verify your email to activate secure sign-in.\n\n"
+        "One-time verification code:\n"
         f"{token}\n\n"
-        + (f"Direct verification link:\n{verify_url}\n\n" if verify_url else "")
-        + "For security, this token expires automatically.\n"
-        "If you did not create this account, you can safely ignore this message.\n\n"
+        + (f"Verify now:\n{verify_url}\n\n" if verify_url else "")
+        + "This code/link expires automatically for your security.\n\n"
         "SingleCell Explorer Security Team"
     )
-    html = f"""
-    <html><body style="font-family:Arial,sans-serif;line-height:1.5;">
-      <h3>Verify your SingleCell Explorer account</h3>
-      <p>Hello {username},</p>
-      <p>Use this one-time verification token:</p>
-      <p style="font-size:18px;font-weight:700;">{token}</p>
-      {"<p><a href='" + verify_url + "'>Verify my email</a></p>" if verify_url else ""}
-      <p>If you did not create this account, you can ignore this email.</p>
-      <p>SingleCell Explorer Security Team</p>
-    </body></html>
-    """
-    return send_email(to_email, "Verify your SingleCell Explorer account", body, html)
+    html = _brand_html_email(
+        title="Verify your account",
+        subtitle="Account security confirmation",
+        body_html=f"Hello <b>{username}</b>,<br><br>Your account has been created. Verify your email to activate secure access.",
+        cta_label="Verify Email",
+        cta_url=verify_url,
+        code=token,
+    )
+    return send_email(to_email, "Action required: verify your SingleCell Explorer account", body, html)
 
 
 def send_password_reset_email(to_email: str, username: str, token: str):
     base = _public_base_url()
-    reset_url = f"{base}?reset_email={to_email}&reset_token={token}" if base else ""
+    reset_url = _build_app_url(base, {"reset_email": to_email, "reset_token": token})
     body = (
         f"Hello {username},\n\n"
         "We received a password reset request for your SingleCell Explorer account.\n\n"
@@ -153,17 +217,14 @@ def send_password_reset_email(to_email: str, username: str, token: str):
         + "If you did not request this, you can ignore this email.\n\n"
         "SingleCell Explorer Security Team"
     )
-    html = f"""
-    <html><body style="font-family:Arial,sans-serif;line-height:1.5;">
-      <h3>Reset your SingleCell Explorer password</h3>
-      <p>Hello {username},</p>
-      <p>Use this one-time reset token:</p>
-      <p style="font-size:18px;font-weight:700;">{token}</p>
-      {"<p><a href='" + reset_url + "'>Reset my password</a></p>" if reset_url else ""}
-      <p>If you did not request this, you can ignore this email.</p>
-      <p>SingleCell Explorer Security Team</p>
-    </body></html>
-    """
+    html = _brand_html_email(
+        title="Reset your password",
+        subtitle="Account recovery request",
+        body_html=f"Hello <b>{username}</b>,<br><br>We received a password reset request for your account.",
+        cta_label="Reset Password",
+        cta_url=reset_url,
+        code=token,
+    )
     return send_email(to_email, "Reset your SingleCell Explorer password", body, html)
 
 
@@ -177,14 +238,11 @@ def send_username_reminder_email(to_email: str, username: str):
         + "If you did not request this message, you can ignore it.\n\n"
         "SingleCell Explorer Security Team"
     )
-    html = f"""
-    <html><body style="font-family:Arial,sans-serif;line-height:1.5;">
-      <h3>Your SingleCell Explorer username</h3>
-      <p>Hello,</p>
-      <p>Your username is: <strong>{username}</strong></p>
-      {"<p><a href='" + base + "'>Open SingleCell Explorer</a></p>" if base else ""}
-      <p>If you did not request this message, you can ignore it.</p>
-      <p>SingleCell Explorer Security Team</p>
-    </body></html>
-    """
+    html = _brand_html_email(
+        title="Your username reminder",
+        subtitle="Account access support",
+        body_html=f"Hello,<br><br>Your username is: <b>{username}</b>.",
+        cta_label="Open SingleCell Explorer",
+        cta_url=base,
+    )
     return send_email(to_email, "Your SingleCell Explorer username", body, html)

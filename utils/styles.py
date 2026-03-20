@@ -463,7 +463,12 @@ def render_sidebar():
     try:
         from utils.backend_db import touch_user_session
 
-        touch_user_session(user.get("session_id"))
+        now_ts = __import__("time").time()
+        last_touch = float(st.session_state.get("_last_session_touch_ts", 0.0) or 0.0)
+        # Reduce DB writes on frequent reruns; still keeps active sessions fresh.
+        if now_ts - last_touch >= 30:
+            touch_user_session(user.get("session_id"))
+            st.session_state["_last_session_touch_ts"] = now_ts
     except Exception:
         pass
     completed = st.session_state.get("pipeline_status", {})

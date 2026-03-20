@@ -1,0 +1,83 @@
+{
+  "user_memories": {},
+  "team_feed": {},
+  "team_snapshots": {},
+  "department_registry": [],
+  "private_learning": {
+    "simonmufara": [
+      {
+        "id": "c57f9f48-a46c-47e7-8298-18cc38be4fd5",
+        "timestamp": "2026-03-20 09:18 UTC",
+        "done_steps": [
+          "Upload"
+        ],
+        "completion": 1
+      },
+      {
+        "id": "ef3f4929-dcc6-45a5-8d36-2d395a6ee1eb",
+        "timestamp": "2026-03-20 09:20 UTC",
+        "done_steps": [
+          "Upload",
+          "Clustering"
+        ],
+        "completion": 2
+      },
+      {
+        "id": "c7019df7-c1ca-420e-b751-cae3aa64a0b3",
+        "timestamp": "2026-03-20 09:28 UTC",
+        "done_steps": [
+          "Upload"
+        ],
+        "completion": 1
+      }
+    ]
+  },
+  "audit_log": [
+    {
+      "id": "82de1e3e-f033-41bb-af32-e863714f82d9",
+      "timestamp": "2026-03-20 09:18 UTC",
+      "event_type": "private_learning_logged",
+      "actor": "simonmufara",
+      "team": "individual",
+      "details": {
+        "completion": 1
+      }
+    },
+    {
+      "id": "c0669d51-fb60-4709-a61e-7009aee1f560",
+      "timestamp": "2026-03-20 09:20 UTC",
+      "event_type": "private_learning_logged",
+      "actor": "simonmufara",
+      "team": "individual",
+      "details": {
+        "completion": 2
+      }
+    },
+    {
+      "id": "c5721413-3219-4fbe-9c83-5b581d5f0f17",
+      "timestamp": "2026-03-20 09:28 UTC",
+      "event_type": "private_learning_logged",
+      "actor": "simonmufara",
+      "team": "individual",
+      "details": {
+        "completion": 1
+      }
+    }
+  ],
+  "presence": {
+    "organization": {
+      "simonmufara": {
+        "user": "simonmufara",
+        "team": "organization",
+        "page": "team_dashboard",
+        "status": "active",
+        "timestamp": "2026-03-20 09:00 UTC",
+        "heartbeat_epoch": 1773997222
+      }
+    }
+  },
+  "shared_analysis": {},
+  "annotations": [],
+  "submitted_reports_team": {},
+  "submitted_reports_public": []
+}

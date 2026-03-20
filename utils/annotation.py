@@ -2,6 +2,9 @@ import scanpy as sc
 import pandas as pd
 import numpy as np
 import celltypist
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, f1_score
+from sklearn.model_selection import train_test_split
 from config import CELLTYPIST_MODEL
 
 # ── Canonical marker gene dictionary ────────────────────────────────────────
@@ -126,3 +129,92 @@ def get_cluster_marker_scores(adata, store_key: str = "marker_scores") -> pd.Dat
     score_df = adata.uns[store_key].copy()
     score_df["cluster"] = adata.obs["leiden"].astype(str).values
     return score_df.groupby("cluster").mean().T
+
+
+def _get_pca_features(adata, n_pcs: int = 30):
+    n_pcs = max(2, int(n_pcs))
+    if "X_pca" in adata.obsm and adata.obsm["X_pca"].shape[1] >= 2:
+        return np.asarray(adata.obsm["X_pca"][:, : min(n_pcs, adata.obsm["X_pca"].shape[1])])
+    adata_tmp = adata.copy()
+    sc.pp.normalize_total(adata_tmp, target_sum=1e4)
+    sc.pp.log1p(adata_tmp)
+    max_pcs = max(2, min(n_pcs, adata_tmp.n_vars - 1, adata_tmp.n_obs - 1))
+    sc.pp.pca(adata_tmp, n_comps=max_pcs)
+    return np.asarray(adata_tmp.obsm["X_pca"][:, :max_pcs])
+
+
+def train_reference_classifier(adata, label_col: str, n_pcs: int = 30, test_fraction: float = 0.2, random_state: int = 42):
+    """Train/evaluate a logistic regression reference classifier from labeled cells."""
+    if label_col not in adata.obs.columns:
+        raise ValueError(f"Label column '{label_col}' not found.")
+    labels = adata.obs[label_col].astype("string")
+    valid_mask = labels.notna() & (labels.str.strip() != "")
+    if int(valid_mask.sum()) < 50:
+        raise ValueError("Not enough labeled cells for training (minimum 50).")
+    labels = labels[valid_mask].astype(str)
+    x = _get_pca_features(adata[valid_mask].copy(), n_pcs=n_pcs)
+    stratify_y = labels if labels.nunique() > 1 and labels.value_counts().min() > 1 else None
+    x_train, x_test, y_train, y_test = train_test_split(
+        x,
+        labels.values,
+        test_size=min(max(float(test_fraction), 0.1), 0.4),
+        random_state=random_state,
+        stratify=stratify_y,
+    )
+    clf = LogisticRegression(max_iter=1200, multi_class="auto")
+    clf.fit(x_train, y_train)
+    y_pred = clf.predict(x_test)
+    prob = clf.predict_proba(x_test).max(axis=1)
+    metrics = {
+        "accuracy": float(accuracy_score(y_test, y_pred)),
+        "macro_f1": float(f1_score(y_test, y_pred, average="macro")),
+        "n_train": int(len(y_train)),
+        "n_test": int(len(y_test)),
+        "n_classes": int(pd.Series(y_train).nunique()),
+        "mean_confidence": float(np.mean(prob)),
+    }
+    return clf, metrics
+
+
+def predict_with_reference_classifier(adata, classifier, n_pcs: int = 30, label_col: str = "cell_type_custom", conf_col: str = "cell_type_custom_conf"):
+    """Apply trained classifier to all cells and store predictions/confidence."""
+    x_all = _get_pca_features(adata.copy(), n_pcs=n_pcs)
+    preds = classifier.predict(x_all)
+    conf = classifier.predict_proba(x_all).max(axis=1)
+    adata.obs[label_col] = pd.Series(preds, index=adata.obs_names, dtype="string")
+    adata.obs[conf_col] = pd.Series(conf, index=adata.obs_names, dtype="float64")
+    return adata
+
+
+def benchmark_annotation_methods(adata, truth_col: str, pred_cols: list[str]):
+    """Benchmark one or more annotation columns against a truth label column."""
+    if truth_col not in adata.obs.columns:
+        raise ValueError(f"Truth column '{truth_col}' not found.")
+    truth = adata.obs[truth_col].astype("string")
+    truth_valid = truth.notna() & (truth.str.strip() != "")
+    if int(truth_valid.sum()) == 0:
+        raise ValueError("Truth column has no valid labels.")
+    rows = []
+    for col in pred_cols:
+        if col not in adata.obs.columns:
+            continue
+        pred = adata.obs[col].astype("string")
+        pred_valid = pred.notna() & (pred.str.strip() != "")
+        common = truth_valid & pred_valid
+        if int(common.sum()) == 0:
+            continue
+        y_true = truth[common].astype(str)
+        y_pred = pred[common].astype(str)
+        coverage = (int(common.sum()) / int(truth_valid.sum())) * 100.0
+        unassigned_pct = float((y_pred.str.lower() == "unassigned").mean() * 100.0)
+        rows.append(
+            {
+                "Method": col,
+                "Accuracy": round(float(accuracy_score(y_true, y_pred)), 4),
+                "Macro F1": round(float(f1_score(y_true, y_pred, average="macro")), 4),
+                "Coverage %": round(coverage, 2),
+                "Unassigned %": round(unassigned_pct, 2),
+                "Compared Cells": int(common.sum()),
+            }
+        )
+    return pd.DataFrame(rows).sort_values(["Macro F1", "Accuracy"], ascending=False) if rows else pd.DataFrame()
