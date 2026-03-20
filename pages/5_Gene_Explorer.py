@@ -2,8 +2,8 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import plotly.express as px
-import scanpy as sc
 
+from core.pipeline import generate_marker_dotplot
 from utils.visualization import gene_umap_plot
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, PALETTE, PLOTLY_TEMPLATE
 from config import CLINICAL_MARKERS
@@ -176,9 +176,7 @@ with tab_dotplot:
         genes = CLINICAL_MARKERS[category]
         present = [g for g in genes if g in adata.var_names]
         if present:
-            fig = sc.pl.dotplot(adata, present, groupby=groupby,
-                                show=False, return_fig=True,
-                                color_map="viridis")
+            fig = generate_marker_dotplot(adata, present, groupby=groupby, color_map="viridis")
             st.pyplot(fig, use_container_width=True)
             plt.close()
         else:

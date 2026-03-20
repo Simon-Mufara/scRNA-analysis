@@ -12,6 +12,7 @@ from utils.annotation import (
 from utils.visualization import umap_plot
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, PALETTE
 from config import CELLTYPIST_MODEL
+from core.pipeline import get_ranked_genes_df
 
 st.set_page_config(page_title="Cell Type Annotation", layout="wide")
 inject_global_css()
@@ -292,10 +293,9 @@ with tab_manual:
     # Show top genes per cluster if DE was run
     if "rank_genes_groups" in adata.uns:
         st.markdown("#### Top Markers per Cluster (from Step 6 DE)")
-        import scanpy as sc
         for cl in clusters[:6]:  # preview first 6
             try:
-                top = sc.get.rank_genes_groups_df(adata, group=str(cl)).head(5)
+                top = get_ranked_genes_df(adata, group=str(cl)).head(5)
                 top_genes = ", ".join(top["names"].tolist())
                 n_cells = (adata.obs["leiden"] == cl).sum()
                 st.markdown(

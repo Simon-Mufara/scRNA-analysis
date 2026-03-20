@@ -1,7 +1,9 @@
 from anndata import AnnData
+import pandas as pd
+import scanpy as sc
 
 from core.clustering import run_clustering_step
-from core.preprocessing import load_h5ad_safe
+from core.preprocessing import load_h5ad_safe, load_input_dataset
 from core.qc import compute_qc_metrics, run_qc_filter
 
 
@@ -27,3 +29,24 @@ def run_pipeline(file_path: str) -> AnnData:
     )
     return adata
 
+
+def load_dataset_by_format(file_path: str, fmt: str):
+    return load_input_dataset(file_path, fmt)
+
+
+def run_differential_expression(adata, *, groupby_col: str, method: str, n_genes: int):
+    sc.tl.rank_genes_groups(adata, groupby=groupby_col, method=method, n_genes=int(n_genes))
+    return adata
+
+
+def get_ranked_genes_df(adata, *, group: str) -> pd.DataFrame:
+    return sc.get.rank_genes_groups_df(adata, group=str(group))
+
+
+def build_prerank_input(adata, *, group: str) -> pd.DataFrame:
+    de_df = get_ranked_genes_df(adata, group=group)
+    return pd.DataFrame({"gene": de_df["names"].astype(str), "score": de_df["scores"].astype(float)})
+
+
+def generate_marker_dotplot(adata, genes: list[str], groupby: str, color_map: str = "viridis"):
+    return sc.pl.dotplot(adata, genes, groupby=groupby, show=False, return_fig=True, color_map=color_map)

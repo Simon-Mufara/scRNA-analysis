@@ -1,5 +1,4 @@
 import streamlit as st
-import scanpy as sc
 import pandas as pd
 import os
 import shutil
@@ -7,6 +6,7 @@ import tempfile
 
 from core.preprocessing import load_h5ad_safe as _load_h5ad_safe
 from core.preprocessing import load_input_dataset, load_demo_dataset
+from core.pipeline import load_dataset_by_format
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons
 from utils.auth import get_current_user
 
@@ -105,10 +105,7 @@ with tab_upload:
                     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix, dir=tempfile.gettempdir()) as tmp:
                         tmp.write(file.getbuffer())
                         tmp_path = tmp.name
-                    if suffix == ".loom":
-                        adata = sc.read_loom(tmp_path)
-                    else:
-                        adata = _load_h5ad_safe(tmp_path)
+                    adata = load_dataset_by_format(tmp_path, suffix)
                 else:
                     temp_dir = tempfile.gettempdir()
                     _ensure_disk_space(file.size, temp_dir)
@@ -124,10 +121,7 @@ with tab_upload:
                             tmp.write(chunk)
                         tmp_path = tmp.name
 
-                    if suffix == ".loom":
-                        adata = sc.read_loom(tmp_path)
-                    else:
-                        adata = _load_h5ad_safe(tmp_path)
+                    adata = load_dataset_by_format(tmp_path, suffix)
             except MemoryError:
                 st.error(
                     "The dataset is too large to load fully into memory in this environment. "

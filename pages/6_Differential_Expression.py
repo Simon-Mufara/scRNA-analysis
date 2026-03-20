@@ -1,10 +1,10 @@
 import streamlit as st
-import scanpy as sc
 import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 
+from core.pipeline import get_ranked_genes_df, run_differential_expression
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, PALETTE, PLOTLY_TEMPLATE
 
 st.set_page_config(page_title="Differential Expression", layout="wide")
@@ -42,9 +42,7 @@ with st.expander("⚙️ DE Parameters", expanded=True):
 if st.button("▶ Run Differential Expression", type="primary"):
     with st.spinner(f"Computing DE markers using {method} across all groups..."):
         try:
-            sc.tl.rank_genes_groups(
-                adata, groupby=groupby_col, method=method, n_genes=int(n_genes)
-            )
+            adata = run_differential_expression(adata, groupby_col=groupby_col, method=method, n_genes=int(n_genes))
             st.session_state["adata"] = adata
             st.session_state.setdefault("pipeline_status", {})["Diff. Expression"] = "done"
             st.success("✅ DE analysis complete! Results shown below.")
@@ -57,7 +55,7 @@ if "rank_genes_groups" not in adata.uns:
     st.stop()
 
 try:
-    raw_df = sc.get.rank_genes_groups_df(adata, group=str(selected_group))
+    raw_df = get_ranked_genes_df(adata, group=str(selected_group))
 except Exception as e:
     st.error(f"Could not retrieve DE results: {e}")
     st.stop()

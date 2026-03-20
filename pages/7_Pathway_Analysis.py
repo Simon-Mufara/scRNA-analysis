@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 
+from core.pipeline import build_prerank_input
 from utils.pathway import get_top_pathways, run_gsea_prerank
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, PLOTLY_TEMPLATE
 from config import PATHWAY_GENE_SETS
@@ -185,19 +186,13 @@ with tab_prerank:
     if adata is None or "rank_genes_groups" not in adata.uns:
         st.info("Run Differential Expression first to use pre-ranked GSEA.")
     else:
-        import scanpy as sc
-
         groups = sorted(adata.obs["leiden"].astype(str).unique().tolist()) if "leiden" in adata.obs.columns else []
         group = st.selectbox("Group for ranking", groups) if groups else st.text_input("Group")
         pr_gene_set = st.selectbox("Gene set library", PATHWAY_GENE_SETS, key="prerank_gs")
         pr_top_n = st.slider("Top pathways", 5, 50, 20, key="prerank_top")
         if st.button("▶ Run Pre-ranked GSEA", type="primary", key="run_prerank"):
             try:
-                de_df = sc.get.rank_genes_groups_df(adata, group=str(group))
-                ranked = pd.DataFrame({
-                    "gene": de_df["names"].astype(str),
-                    "score": de_df["scores"].astype(float),
-                })
+                ranked = build_prerank_input(adata, group=str(group))
                 out = run_gsea_prerank(ranked, gene_sets=pr_gene_set, top_n=pr_top_n)
                 if out.empty:
                     st.warning("No pathway results returned from prerank.")
