@@ -33,7 +33,7 @@ def inject_global_css():
             [data-testid="stSidebar"] { background: var(--surface) !important; border-right: 1px solid var(--border) !important; }
             [data-testid="stSidebarContent"] { background: var(--surface) !important; }
             [data-testid="stHeader"] {
-                background: #FFFFFF !important;
+                background: #F8FAFC !important;
                 border-bottom: 1px solid var(--border) !important;
             }
             [data-testid="stHeader"] * {
@@ -127,6 +127,27 @@ def inject_global_css():
             [data-testid="stAlert"] {
                 background: #F8FAFC !important;
                 border: 1px solid var(--border) !important;
+            }
+            /* Light-theme rescue for hard-coded dark inline cards/text */
+            div[style*="background:#0D1117"],
+            div[style*="background:rgba(13,17,23"],
+            div[style*="background:rgba(22,27,34"] {
+                background: #FFFFFF !important;
+                border-color: #D9E2EC !important;
+            }
+            div[style*="color:#E6EDF3"],
+            div[style*="color:#C9D1D9"],
+            div[style*="color:#8B949E"],
+            div[style*="color:#6E7681"],
+            span[style*="color:#E6EDF3"],
+            span[style*="color:#C9D1D9"],
+            span[style*="color:#8B949E"],
+            span[style*="color:#6E7681"],
+            p[style*="color:#E6EDF3"],
+            p[style*="color:#C9D1D9"],
+            p[style*="color:#8B949E"],
+            p[style*="color:#6E7681"] {
+                color: #1E293B !important;
             }
 
             code {
