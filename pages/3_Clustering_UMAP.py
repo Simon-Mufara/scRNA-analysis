@@ -38,6 +38,18 @@ with st.expander("⚙️ Pipeline Parameters", expanded=True):
     n_nb    = c3.number_input("# Neighbours", value=N_NEIGHBORS, min_value=5, max_value=100)
     res     = c4.slider("Leiden resolution", 0.1, 2.0, LEIDEN_RESOLUTION, step=0.1,
                         help="Higher = more clusters")
+    c5, c6 = st.columns(2)
+    integration_method = c5.selectbox(
+        "Batch integration",
+        ["none", "harmony", "bbknn", "scanorama"],
+        help="Use when you have batch effects and a batch metadata column.",
+    )
+    batch_candidates = [""] + list(adata.obs.columns)
+    batch_key = c6.selectbox(
+        "Batch key column",
+        batch_candidates,
+        help="Metadata column identifying batch/study/source.",
+    )
 
 if st.button("▶ Run Full Clustering Pipeline", type="primary"):
     steps = ["Normalizing", "Log1p transform", "HVG selection", "PCA",
@@ -48,7 +60,8 @@ if st.button("▶ Run Full Clustering Pipeline", type="primary"):
 
     with st.spinner("Running clustering pipeline..."):
         adata = run_clustering(adata, n_top_genes=n_top, n_pcs=n_pcs,
-                               n_neighbors=n_nb, resolution=res)
+                               n_neighbors=n_nb, resolution=res,
+                               integration_method=integration_method, batch_key=batch_key)
         st.session_state["adata"] = adata
         st.session_state.setdefault("pipeline_status", {})["Clustering"] = "done"
 

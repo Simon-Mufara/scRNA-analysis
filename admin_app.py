@@ -18,6 +18,7 @@ from utils.backend_db import (
     init_db,
     insert_audit_event,
     migrate_collab_store,
+    reset_login_data_keep_user,
     set_system_setting,
     set_platform_admin_password,
 )
@@ -106,6 +107,36 @@ with st.expander("Emergency reset existing backend admin login", expanded=False)
             st.session_state["admin_user"] = ""
             st.success("Existing backend admin login reset. You can now create new platform admin credentials above.")
             st.rerun()
+
+with st.expander("Refresh logins (keep one user only)", expanded=False):
+    st.warning("This permanently removes all users except one selected username, and clears login sessions/tokens.")
+    with st.form("refresh_logins_form", clear_on_submit=True):
+        keep_username = st.text_input("Username to keep")
+        refresh_confirm = st.text_input("Type REFRESH to confirm")
+        refresh_submit = st.form_submit_button("Refresh login data")
+    if refresh_submit:
+        if (refresh_confirm or "").strip().upper() != "REFRESH":
+            st.error("Confirmation text mismatch.")
+        else:
+            ok, err, stats = reset_login_data_keep_user(keep_username)
+            if ok:
+                _log_admin_event(
+                    "admin_refresh_logins_success",
+                    st.session_state.get("admin_user"),
+                    {"kept_username": (keep_username or "").strip().lower(), **stats},
+                )
+                st.success(
+                    f"Login data refreshed. Kept `{(keep_username or '').strip().lower()}`; "
+                    f"removed {stats.get('removed_users', 0)} other user(s)."
+                )
+                st.rerun()
+            else:
+                _log_admin_event(
+                    "admin_refresh_logins_failed",
+                    st.session_state.get("admin_user"),
+                    {"kept_username": (keep_username or "").strip().lower(), "error": err or "unknown_error"},
+                )
+                st.error(err or "Failed to refresh login data.")
 
 if not admin_seed:
     st.info("No backend users found yet. Create admin credentials above, then login.")
@@ -242,6 +273,11 @@ with st.expander("Backend configuration (SMTP + Entra)", expanded=False):
         )
         smtp_timeout = st.text_input("SMTP Timeout (seconds)", value=get_system_setting("mail.smtp_timeout_seconds", "10"))
         app_public_url = st.text_input("App Public URL", value=get_system_setting("mail.app_public_url"))
+        session_timeout = st.text_input(
+            "Session timeout minutes",
+            value=get_system_setting("auth.session_timeout_minutes", "720"),
+            help="Inactive sessions older than this are logged out automatically.",
+        )
         save_smtp = st.form_submit_button("Save SMTP settings", use_container_width=True)
         test_to = st.text_input("SMTP test recipient email")
         test_smtp = st.form_submit_button("Send test email", use_container_width=True)
@@ -255,6 +291,11 @@ with st.expander("Backend configuration (SMTP + Entra)", expanded=False):
         set_system_setting("mail.smtp_use_starttls", smtp_starttls.strip())
         set_system_setting("mail.smtp_timeout_seconds", smtp_timeout.strip() or "10")
         set_system_setting("mail.app_public_url", app_public_url.strip())
+        timeout_value = (session_timeout or "").strip()
+        if timeout_value.isdigit() and int(timeout_value) >= 5:
+            set_system_setting("auth.session_timeout_minutes", timeout_value)
+        else:
+            set_system_setting("auth.session_timeout_minutes", "720")
         st.success("SMTP/backend email settings saved.")
     if test_smtp:
         from utils.mailer import send_email

@@ -77,6 +77,16 @@ The platform delivers a complete 8-stage analysis experience:
 - GSEApy
 - FPDF2
 
+## Extended Bioinformatics Options
+
+For teams needing additional or alternative workflows, this platform aligns with common ecosystems:
+
+- **R ecosystem:** Seurat, Azimuth, SingleR, DoubletFinder, harmony.
+- **Python ecosystem:** scverse/Scanpy, scVI-tools, BBKNN, Scanorama, decoupler.
+- **Pathway/enrichment alternatives:** fgsea, clusterProfiler, ReactomePA.
+
+Use these options for method cross-checking, reproducibility audits, and institution-specific SOPs.
+
 ## Security and Authentication
 
 - Production authenticator: Microsoft Entra ID (OIDC + MFA).

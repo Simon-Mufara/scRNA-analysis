@@ -33,7 +33,7 @@ def inject_global_css():
             [data-testid="stSidebar"] { background: var(--surface) !important; border-right: 1px solid var(--border) !important; }
             [data-testid="stSidebarContent"] { background: var(--surface) !important; }
             [data-testid="stHeader"] {
-                background: #FFFFFF !important;
+                background: #F8FAFC !important;
                 border-bottom: 1px solid var(--border) !important;
             }
             [data-testid="stHeader"] * {
@@ -128,6 +128,27 @@ def inject_global_css():
                 background: #F8FAFC !important;
                 border: 1px solid var(--border) !important;
             }
+            /* Light-theme rescue for hard-coded dark inline cards/text */
+            div[style*="background:#0D1117"],
+            div[style*="background:rgba(13,17,23"],
+            div[style*="background:rgba(22,27,34"] {
+                background: #FFFFFF !important;
+                border-color: #D9E2EC !important;
+            }
+            div[style*="color:#E6EDF3"],
+            div[style*="color:#C9D1D9"],
+            div[style*="color:#8B949E"],
+            div[style*="color:#6E7681"],
+            span[style*="color:#E6EDF3"],
+            span[style*="color:#C9D1D9"],
+            span[style*="color:#8B949E"],
+            span[style*="color:#6E7681"],
+            p[style*="color:#E6EDF3"],
+            p[style*="color:#C9D1D9"],
+            p[style*="color:#8B949E"],
+            p[style*="color:#6E7681"] {
+                color: #1E293B !important;
+            }
 
             code {
                 background: #EEF2FF !important;
@@ -196,7 +217,7 @@ def inject_global_css():
         border-radius: 8px !important;
         margin: 2px 0 !important;
         padding: 8px 12px !important;
-        color: #6E7681 !important;
+        color: #A1ABB8 !important;
         font-size: 0.85rem !important;
         font-weight: 500 !important;
         letter-spacing: -0.01em !important;
@@ -206,7 +227,7 @@ def inject_global_css():
     }
     [data-testid="stSidebarNavItems"] a:hover {
         background: rgba(0,212,255,0.06) !important;
-        color: #C9D1D9 !important;
+        color: #E6EDF3 !important;
         border-color: rgba(0,212,255,0.12) !important;
     }
     [data-testid="stSidebarNavItems"] a[aria-current="page"] {
@@ -234,7 +255,7 @@ def inject_global_css():
         font-size: 1.35rem !important;
     }
     h3 {
-        color: #8B949E !important;
+        color: #C9D1D9 !important;
         font-weight: 600 !important;
         letter-spacing: -0.01em !important;
         font-size: 1rem !important;
@@ -261,7 +282,7 @@ def inject_global_css():
         letter-spacing: -0.03em !important;
     }
     [data-testid="stMetricLabel"] {
-        color: #6E7681 !important;
+        color: #9AA4AF !important;
         font-size: 0.75rem !important;
         text-transform: uppercase !important;
         letter-spacing: 0.08em !important;
@@ -278,7 +299,7 @@ def inject_global_css():
     /* ── Buttons ─────────────────────────────── */
     [data-testid="baseButton-primary"] {
         background: linear-gradient(135deg, #00D4FF 0%, #0099BB 100%) !important;
-        color: #000000 !important;
+        color: #0B1220 !important;
         font-weight: 700 !important;
         font-size: 0.875rem !important;
         letter-spacing: -0.01em !important;
@@ -314,7 +335,7 @@ def inject_global_css():
         padding: 0 !important;
     }
     [data-testid="stTabs"] [data-baseweb="tab"] {
-        color: #6E7681 !important;
+        color: #A9B2BD !important;
         font-weight: 500 !important;
         font-size: 0.875rem !important;
         padding: 10px 18px !important;
@@ -463,7 +484,12 @@ def render_sidebar():
     try:
         from utils.backend_db import touch_user_session
 
-        touch_user_session(user.get("session_id"))
+        now_ts = __import__("time").time()
+        last_touch = float(st.session_state.get("_last_session_touch_ts", 0.0) or 0.0)
+        # Reduce DB writes on frequent reruns; still keeps active sessions fresh.
+        if now_ts - last_touch >= 30:
+            touch_user_session(user.get("session_id"))
+            st.session_state["_last_session_touch_ts"] = now_ts
     except Exception:
         pass
     completed = st.session_state.get("pipeline_status", {})
@@ -672,6 +698,7 @@ def badge(text: str, color: str = "#00D4FF"):
 # Ordered page manifest — (file path relative to app root, label, icon)
 PAGES = [
     ("app",                              "Home",                  ":material/home:"),
+    ("pages/10_Preprocessing_Workbench", "Preprocessing Workbench", ":material/build:"),
     ("pages/1_Upload_Data",              "Upload Data",           ":material/upload_file:"),
     ("pages/2_Quality_Control",          "Quality Control",       ":material/biotech:"),
     ("pages/3_Clustering_UMAP",          "Clustering & UMAP",     ":material/monitoring:"),

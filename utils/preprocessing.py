@@ -4,7 +4,8 @@ from config import QC_MIN_GENES, QC_MAX_GENES, QC_MIN_CELLS, QC_MAX_MITO_PCT
 
 
 def run_qc(adata, min_genes=QC_MIN_GENES, max_genes=QC_MAX_GENES,
-           min_cells=QC_MIN_CELLS, max_mito=QC_MAX_MITO_PCT):
+           min_cells=QC_MIN_CELLS, max_mito=QC_MAX_MITO_PCT,
+           remove_doublets: bool = False):
     """Run standard QC filtering on AnnData object."""
 
     # Flag mitochondrial genes
@@ -26,11 +27,28 @@ def run_qc(adata, min_genes=QC_MIN_GENES, max_genes=QC_MAX_GENES,
     # Filter by mitochondrial content
     adata = adata[adata.obs["pct_counts_mt"] < max_mito].copy()
 
+    doublets_removed = 0
+    if remove_doublets:
+        try:
+            import scrublet as scr
+            from scipy.sparse import issparse
+
+            x = adata.X.toarray() if issparse(adata.X) else np.asarray(adata.X)
+            scrub = scr.Scrublet(x)
+            _, pred = scrub.scrub_doublets()
+            adata.obs["is_doublet"] = pred.astype(bool)
+            before_doublet = adata.n_obs
+            adata = adata[~adata.obs["is_doublet"]].copy()
+            doublets_removed = before_doublet - adata.n_obs
+        except Exception:
+            adata.obs["is_doublet"] = False
+
     after = adata.n_obs
     adata.uns["qc_summary"] = {
         "cells_before": before,
         "cells_after": after,
         "cells_removed": before - after,
+        "doublets_removed": int(doublets_removed),
     }
 
     return adata

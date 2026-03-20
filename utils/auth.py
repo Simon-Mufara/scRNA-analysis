@@ -41,6 +41,16 @@ def init_auth_state():
     return {key: st.session_state[key] for key in defaults}
 
 
+def _sync_auth_sid_query_param():
+    try:
+        auth_sid = st.session_state.get("auth_session_id")
+        qp_sid = st.query_params.get("auth_sid")
+        if auth_sid and qp_sid != auth_sid:
+            st.query_params["auth_sid"] = auth_sid
+    except Exception:
+        pass
+
+
 def _norm(value: str):
     return " ".join((value or "").strip().lower().split())
 
@@ -149,6 +159,7 @@ def require_min_role(minimum_role: str, feature_name: str):
 
 def render_login_gate():
     init_auth_state()
+    _sync_auth_sid_query_param()
     if st.session_state.get("is_authenticated"):
         return
 
