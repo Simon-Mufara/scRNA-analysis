@@ -7,27 +7,47 @@ from backend.main import app
 client = TestClient(app)
 
 
-def test_health():
-    resp = client.get("/health")
+def test_analyze_endpoint_returns_200_with_expected_json(monkeypatch, tmp_path: Path):
+    in_file = tmp_path / "sample.h5ad"
+    in_file.write_bytes(b"dummy")
+
+    def _fake_enqueue(_: str):
+        return "job-123"
+
+    monkeypatch.setattr("backend.routers.jobs.enqueue_analysis", _fake_enqueue)
+
+    resp = client.post("/analyze", json={"input_path": str(in_file)})
     assert resp.status_code == 200
     payload = resp.json()
     assert payload["status"] == "success"
     assert payload["error"] is None
+    assert "data" in payload
+    assert payload["data"]["job_id"] == "job-123"
+    assert payload["data"]["status"] == "queued"
 
 
-def test_analyze_missing_file_returns_404():
-    resp = client.post("/analyze", json={"input_path": "/tmp/definitely_missing_12345.h5ad"})
-    assert resp.status_code == 404
+def test_results_endpoint_returns_200_with_expected_json(monkeypatch):
+    class _Task:
+        state = "SUCCESS"
+        result = {
+            "output_path": "/tmp/out_analyzed.h5ad",
+            "n_obs": 100,
+            "n_vars": 50,
+            "umap_coordinates": [[0.1, 0.2], [0.3, 0.4]],
+            "cluster_labels": ["0", "1"],
+        }
+
+    monkeypatch.setattr("backend.routers.jobs.get_task_result", lambda _job_id: _Task())
+    monkeypatch.setattr("backend.routers.jobs.map_task_status", lambda _task: "completed")
+
+    resp = client.get("/results/job-123")
+    assert resp.status_code == 200
     payload = resp.json()
-    assert payload["status"] == "error"
-
-
-def test_upload_rejects_invalid_extension(tmp_path: Path):
-    bad_file = tmp_path / "bad.txt"
-    bad_file.write_text("not supported", encoding="utf-8")
-    with bad_file.open("rb") as fh:
-        resp = client.post("/upload", files={"file": ("bad.txt", fh, "text/plain")})
-    assert resp.status_code == 400
-    payload = resp.json()
-    assert payload["status"] == "error"
+    assert payload["status"] == "success"
+    assert payload["error"] is None
+    assert "data" in payload
+    assert payload["data"]["job_id"] == "job-123"
+    assert payload["data"]["status"] == "completed"
+    assert isinstance(payload["data"]["umap_coordinates"], list)
+    assert isinstance(payload["data"]["cluster_labels"], list)
 

@@ -19,9 +19,8 @@ def test_run_pipeline_smoke(tmp_path: Path):
 
     out = run_pipeline(str(in_path))
 
-    assert out is not None
+    assert isinstance(out, AnnData)
     assert out.n_obs > 0
     assert out.n_vars > 0
     assert "X_umap" in out.obsm
     assert "leiden" in out.obs.columns
-
