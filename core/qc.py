@@ -22,6 +22,16 @@ def run_qc_filter(adata, *, min_genes: int, max_genes: int, min_cells: int, max_
     )
 
 
+def qc_filter(adata, *, min_genes: int, max_genes: int, min_cells: int, max_mito: float, remove_doublets: bool = False):
+    return run_qc_filter(
+        adata,
+        min_genes=min_genes,
+        max_genes=max_genes,
+        min_cells=min_cells,
+        max_mito=max_mito,
+        remove_doublets=remove_doublets,
+    )
+
+
 def get_qc_stats(adata):
     return _get_qc_stats(adata)
-

@@ -1,6 +1,7 @@
 import h5py
 import pandas as pd
 import scanpy as sc
+from pathlib import Path
 
 
 def register_null_reader():
@@ -25,13 +26,16 @@ def register_null_reader():
 def load_h5ad_safe(path: str):
     register_null_reader()
     try:
-        return sc.read_h5ad(path)
+        adata_backed = sc.read(path, backed="r")
+        # QC/filtering/normalization/PCA/UMAP/clustering mutate AnnData, so convert before pipeline steps.
+        return adata_backed.to_memory()
     except Exception as e1:
         if "null" not in str(e1).lower() and "IORegistryError" not in str(type(e1).__name__):
             raise
 
     try:
-        adata = sc.read_h5ad(path, backed="r")
+        adata = sc.read(path, backed="r")
+        # Same as above: convert backed object when running mutating Scanpy operations.
         return adata.to_memory()
     except Exception:
         pass
@@ -79,6 +83,8 @@ def load_h5ad_safe(path: str):
 
 def load_input_dataset(file_path: str, fmt: str):
     lower_fmt = (fmt or "").lower()
+    if ".zarr" in lower_fmt:
+        return sc.read_zarr(file_path)
     if ".loom" in lower_fmt:
         return sc.read_loom(file_path)
     if ".csv" in lower_fmt:
@@ -88,6 +94,14 @@ def load_input_dataset(file_path: str, fmt: str):
 
         return sc.read_10x_mtx(os.path.dirname(file_path), var_names="gene_symbols")
     return load_h5ad_safe(file_path)
+
+
+def convert_h5ad_to_zarr(file_path: str) -> str:
+    src = Path(file_path)
+    dst = src.with_suffix(".zarr")
+    adata = load_h5ad_safe(str(src))
+    adata.write_zarr(str(dst))
+    return str(dst)
 
 
 def load_demo_dataset():
@@ -103,4 +117,3 @@ def validate_prepared_adata(adata):
         "No missing obs column names": not adata.obs.columns.isnull().any(),
         "No missing var column names": not adata.var.columns.isnull().any(),
     }
-

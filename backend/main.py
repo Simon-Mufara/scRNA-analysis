@@ -1,4 +1,8 @@
 import logging
+import os
+import platform
+import socket
+from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -6,8 +10,8 @@ from fastapi.responses import JSONResponse
 from backend.routers.jobs import router as jobs_router
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    level=logging.DEBUG,
+    format="[%(levelname)s] %(message)s",
 )
 
 app = FastAPI(title="scRNA Explorer Backend", version="1.0.0")
@@ -21,9 +25,29 @@ app.add_middleware(
 app.include_router(jobs_router)
 
 
+@app.on_event("startup")
+async def startup_log():
+    port = os.getenv("PORT", "8000")
+    logging.info("=== SERVER STARTED ===")
+    logging.info("Running on port %s", port)
+    logging.info("Working directory: %s", Path.cwd())
+
+
 @app.get("/health")
 def health():
-    return {"status": "success", "data": {"service": "scRNA Explorer Backend", "health": "ok"}, "error": None}
+    return {"status": "ok", "message": "API is running"}
+
+
+@app.get("/debug")
+def debug():
+    uploads_dir = Path("data/uploads")
+    upload_files = sorted([p.name for p in uploads_dir.iterdir() if p.is_file()]) if uploads_dir.exists() else []
+    return {
+        "cwd": str(Path.cwd()),
+        "uploads_files": upload_files,
+        "python_version": platform.python_version(),
+        "hostname": socket.gethostname(),
+    }
 
 
 @app.exception_handler(HTTPException)

@@ -38,7 +38,7 @@ def run_clustering(adata, n_top_genes=N_TOP_GENES, n_pcs=N_PCS,
     # min_mean/max_mean protect against degenerate bins; n_bins=20 is robust
     sc.pp.highly_variable_genes(
         adata,
-        n_top_genes=min(n_top_genes, adata.n_vars),
+        n_top_genes=min(2000, adata.n_vars),
         min_mean=0.0125,
         max_mean=3,
         min_disp=0.5,
@@ -47,7 +47,8 @@ def run_clustering(adata, n_top_genes=N_TOP_GENES, n_pcs=N_PCS,
     adata.raw = adata  # preserve pre-scale counts for DE
 
     # ── 4. PCA → neighbors → UMAP → Leiden ──────────────────────────────────
-    sc.pp.scale(adata, max_value=10)
+    if adata.n_obs <= 50000:
+        sc.pp.scale(adata, max_value=10)
 
     n_pcs_actual = min(n_pcs, adata.n_vars - 1, adata.n_obs - 1)
     sc.pp.pca(adata, n_comps=n_pcs_actual, use_highly_variable=True)

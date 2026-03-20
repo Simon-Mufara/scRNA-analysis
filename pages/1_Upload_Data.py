@@ -4,12 +4,29 @@ import os
 import shutil
 import tempfile
 import requests
+import numpy as np
+from anndata import AnnData
 
 from core.preprocessing import load_h5ad_safe as _load_h5ad_safe
 from core.preprocessing import load_demo_dataset
 from core.pipeline import load_dataset_by_format
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons
 from utils.auth import get_current_user
+
+
+def _set_debug(status: str | None = None, error: str | None = None):
+    if status is not None:
+        st.session_state["debug_last_response_status"] = status
+    if error is not None:
+        st.session_state["debug_last_error"] = error
+
+
+def _load_synthetic_dataset() -> AnnData:
+    n_cells, n_genes = 400, 80
+    x = np.random.poisson(1.2, size=(n_cells, n_genes)).astype(float)
+    obs = pd.DataFrame(index=[f"cell_{i}" for i in range(n_cells)])
+    var = pd.DataFrame(index=[f"gene_{j}" for j in range(n_genes)])
+    return AnnData(X=x, obs=obs, var=var)
 
 
 def _safe_unlink(path: str):
@@ -35,6 +52,7 @@ def _ensure_disk_space(required_bytes: int, dest_dir: str, overhead_ratio: float
 
 def _analyze_via_backend(input_path: str, uploaded_file: tuple | None = None):
     base = os.getenv("BACKEND_API_URL", "http://127.0.0.1:8000").rstrip("/")
+    st.session_state["debug_api_url"] = base
     try:
         backend_input_path = input_path
         if uploaded_file is not None:
@@ -43,10 +61,13 @@ def _analyze_via_backend(input_path: str, uploaded_file: tuple | None = None):
                 files={"file": uploaded_file},
                 timeout=300,
             )
+            _set_debug(status=f"/upload {resp.status_code}")
             if resp.status_code >= 400:
+                _set_debug(error=f"Upload API failed: {resp.text}")
                 return None, f"Upload API failed: {resp.text}"
             upload_json = resp.json()
             if upload_json.get("status") != "success":
+                _set_debug(error=f"Upload API failed: {upload_json.get('error') or 'unknown error'}")
                 return None, f"Upload API failed: {upload_json.get('error') or 'unknown error'}"
             backend_input_path = (upload_json.get("data") or {}).get("input_path") or input_path
         analyze_resp = requests.post(
@@ -54,25 +75,35 @@ def _analyze_via_backend(input_path: str, uploaded_file: tuple | None = None):
             json={"input_path": backend_input_path},
             timeout=1800,
         )
+        _set_debug(status=f"/analyze {analyze_resp.status_code}")
         if analyze_resp.status_code >= 400:
+            _set_debug(error=f"Analyze API failed: {analyze_resp.text}")
             return None, f"Analyze API failed: {analyze_resp.text}"
         analyze_json = analyze_resp.json()
         if analyze_json.get("status") != "success":
+            _set_debug(error=f"Analyze API failed: {analyze_json.get('error') or 'unknown error'}")
             return None, f"Analyze API failed: {analyze_json.get('error') or 'unknown error'}"
         job_id = (analyze_json.get("data") or {}).get("job_id")
         if not job_id:
+            _set_debug(error="Analyze API returned no job_id.")
             return None, "Analyze API returned no job_id."
         results_resp = requests.get(f"{base}/results/{job_id}", timeout=120)
+        _set_debug(status=f"/results {results_resp.status_code}")
         if results_resp.status_code >= 400:
+            _set_debug(error=f"Results API failed: {results_resp.text}")
             return None, f"Results API failed: {results_resp.text}"
         results_json = results_resp.json()
         if results_json.get("status") != "success":
+            _set_debug(error=f"Results API failed: {results_json.get('error') or 'unknown error'}")
             return None, f"Results API failed: {results_json.get('error') or 'unknown error'}"
         output_path = (results_json.get("data") or {}).get("output_path")
         if not output_path:
+            _set_debug(error="Results API returned no output_path.")
             return None, "Results API returned no output_path."
+        _set_debug(error="")
         return _load_h5ad_safe(output_path), None
     except Exception as exc:
+        _set_debug(error=f"Backend API request failed: {exc}")
         return None, f"Backend API request failed: {exc}"
 
 
@@ -81,6 +112,13 @@ inject_global_css()
 render_sidebar()
 current_user = get_current_user()
 is_demo_user = bool(current_user.get("is_demo"))
+
+with st.sidebar:
+    with st.expander("Debug", expanded=False):
+        st.caption(f"API URL: {st.session_state.get('debug_api_url', os.getenv('BACKEND_API_URL', 'http://127.0.0.1:8000').rstrip('/'))}")
+        st.caption(f"Last response status: {st.session_state.get('debug_last_response_status', 'N/A')}")
+        last_error = st.session_state.get("debug_last_error", "")
+        st.caption(f"Error: {last_error or 'None'}")
 
 # ── Visual banner ──────────────────────────────────────────────────────────────
 banner_col, img_col = st.columns([2, 1])
@@ -218,7 +256,7 @@ with tab_path:
 
     file_path = st.text_input(
         "Absolute server path (Linux)",
-        placeholder="/data/human_immune_health_atlas.h5ad"
+        placeholder="/data/sample_dataset.h5ad"
     )
 
     col_fmt, col_btn = st.columns([2, 1])
@@ -228,7 +266,7 @@ with tab_path:
         if not file_path:
             st.warning("Enter a file path.")
         elif not os.path.isabs(file_path):
-            st.error("Please provide an absolute Linux path (for example: /users/simon/data/sample.h5ad).")
+            st.error("Please provide an absolute Linux path (for example: /data/sample.h5ad).")
         elif not os.path.exists(file_path):
             st.error(f"File not found: `{file_path}`")
         else:
@@ -282,7 +320,9 @@ with tab_example:
 # ── Dataset summary ──────────────────────────────────────────────────────────
 adata = st.session_state.get("adata")
 if adata is None:
-    st.stop()
+    st.info("No file uploaded yet. Loaded a small synthetic dataset for demo use.")
+    adata = _load_synthetic_dataset()
+    st.session_state["adata"] = adata
 
 st.divider()
 st.markdown("### 📊 Dataset Overview")

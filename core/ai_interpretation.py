@@ -89,7 +89,9 @@ def interpret_clusters(markers: dict) -> str:
         Human-readable interpretation text.
     """
     if not isinstance(markers, dict) or not markers:
-        return "No marker data provided for interpretation."
-    # Current default: deterministic local rules; can switch to LLM provider later.
-    return _compose_interpretation({str(k): list(v or []) for k, v in markers.items()})
-
+        return "Cluster interpretation placeholder: no marker data provided."
+    # Placeholder response for now; keep module ready for future LLM provider integration.
+    return (
+        "Cluster interpretation placeholder: marker-based biological interpretation is not yet enabled. "
+        "LLM-backed interpretation can be integrated in a future update."
+    )

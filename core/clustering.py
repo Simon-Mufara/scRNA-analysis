@@ -21,3 +21,49 @@ def run_clustering_step(
         batch_key=batch_key,
     )
 
+
+def normalize(adata):
+    # Normalization is executed inside run_clustering_step to preserve current behavior.
+    return adata
+
+
+def run_pca(adata):
+    if "X_pca" not in adata.obsm:
+        _ = run_clustering_step(
+            adata,
+            n_top_genes=2000,
+            n_pcs=40,
+            n_neighbors=15,
+            resolution=0.5,
+            integration_method="none",
+            batch_key="",
+        )
+    return adata
+
+
+def run_umap(adata):
+    if "X_umap" not in adata.obsm:
+        _ = run_clustering_step(
+            adata,
+            n_top_genes=2000,
+            n_pcs=40,
+            n_neighbors=15,
+            resolution=0.5,
+            integration_method="none",
+            batch_key="",
+        )
+    return adata
+
+
+def cluster(adata):
+    if "leiden" not in adata.obs.columns:
+        _ = run_clustering_step(
+            adata,
+            n_top_genes=2000,
+            n_pcs=40,
+            n_neighbors=15,
+            resolution=0.5,
+            integration_method="none",
+            batch_key="",
+        )
+    return adata

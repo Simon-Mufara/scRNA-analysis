@@ -1,13 +1,17 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Optional
 import logging
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel, ConfigDict
 
-from backend.services.job_service import enqueue_analysis, get_task_result, map_task_status, task_progress
+from backend.services.pipeline_service import (
+    get_analysis_results,
+    get_analysis_status,
+    save_upload,
+    start_analysis,
+)
 
 router = APIRouter(tags=["jobs"])
 logger = logging.getLogger(__name__)
@@ -41,46 +45,37 @@ class ResultsResponse(BaseModel):
     output_path: Optional[str] = None
     n_obs: Optional[int] = None
     n_vars: Optional[int] = None
+    umap: Optional[list[list[float]]] = None
+    clusters: Optional[list[str]] = None
     umap_coordinates: Optional[list[list[float]]] = None
     cluster_labels: Optional[list[str]] = None
 
 
 @router.post("/upload")
 async def upload(file: UploadFile = File(...)):
-    suffix = Path(file.filename or "").suffix.lower()
-    if suffix not in {".h5ad", ".csv"}:
-        raise HTTPException(status_code=400, detail="Only .h5ad or .csv files are supported.")
-    out_dir = Path("data/uploads")
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / file.filename
+    logger.debug("endpoint=/upload started")
+    logger.info("Starting file upload for %s", file.filename)
     try:
-        payload = await file.read()
-        if not payload:
-            raise HTTPException(status_code=400, detail="Uploaded file is empty.")
-        out_path.write_bytes(payload)
-        logger.info("Uploaded file stored path=%s", out_path)
+        out_path = await save_upload(file)
+        logger.info("Completed file upload for %s", file.filename)
         payload = AnalyzeResponse(job_id="", status="uploaded", input_path=str(out_path)).model_dump()
         return {"status": "success", "data": payload, "error": None}
     except HTTPException:
         raise
     except Exception as exc:
-        logger.exception("Upload failed file=%s error=%s", file.filename, exc)
+        logger.exception("Failed at step upload for file %s: %s", file.filename, exc)
         raise HTTPException(status_code=500, detail="Failed to store uploaded file.")
 
 
 @router.post("/analyze")
 def analyze(req: AnalyzeRequest):
-    path = Path(req.input_path)
-    if not path.exists():
-        raise HTTPException(status_code=404, detail="Input file not found.")
-    if path.suffix.lower() not in {".h5ad", ".csv"}:
-        raise HTTPException(status_code=400, detail="Only .h5ad or .csv input is supported.")
+    logger.debug("endpoint=/analyze started")
     try:
-        job_id = enqueue_analysis(str(path))
+        job_id = start_analysis(req.input_path)
         payload = AnalyzeResponse(
             job_id=job_id,
-            status="queued",
-            input_path=str(path),
+            status="running",
+            input_path=req.input_path,
             umap_coordinates=None,
             cluster_labels=None,
         ).model_dump()
@@ -88,38 +83,19 @@ def analyze(req: AnalyzeRequest):
     except HTTPException:
         raise
     except Exception as exc:
-        logger.exception("Analyze endpoint failed input=%s error=%s", req.input_path, exc)
+        logger.exception("Failed at step analyze for file %s: %s", req.input_path, exc)
         raise HTTPException(status_code=500, detail="Analysis failed.")
 
 
 @router.get("/status/{job_id}")
 def status(job_id: str):
-    task = get_task_result(job_id)
-    status_value = map_task_status(task)
-    error_msg = str(task.result) if status_value == "failed" and task.result else None
-    payload = StatusResponse(
-        job_id=job_id,
-        status=status_value,
-        progress=task_progress(task),
-        error=error_msg,
-    ).model_dump()
+    logger.debug("endpoint=/status started")
+    payload = StatusResponse(**get_analysis_status(job_id)).model_dump()
     return {"status": "success", "data": payload, "error": None}
 
 
 @router.get("/results/{job_id}")
 def results(job_id: str):
-    task = get_task_result(job_id)
-    status_value = map_task_status(task)
-    if status_value != "completed":
-        raise HTTPException(status_code=409, detail=f"Job is not completed (status={status_value}).")
-    task_data = task.result if isinstance(task.result, dict) else {}
-    payload = ResultsResponse(
-        job_id=job_id,
-        status=status_value,
-        output_path=task_data.get("output_path"),
-        n_obs=task_data.get("n_obs"),
-        n_vars=task_data.get("n_vars"),
-        umap_coordinates=task_data.get("umap_coordinates"),
-        cluster_labels=task_data.get("cluster_labels"),
-    ).model_dump()
+    logger.debug("endpoint=/results started")
+    payload = ResultsResponse(**get_analysis_results(job_id)).model_dump()
     return {"status": "success", "data": payload, "error": None}
