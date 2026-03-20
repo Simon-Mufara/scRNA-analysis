@@ -20,6 +20,7 @@ class AnalyzeRequest(BaseModel):
 class AnalyzeResponse(BaseModel):
     job_id: str
     status: str
+    input_path: Optional[str] = None
     umap_coordinates: Optional[list[list[float]]] = None
     cluster_labels: Optional[list[str]] = None
 
@@ -58,7 +59,7 @@ async def upload(file: UploadFile = File(...)):
         out_path.write_bytes(payload)
         job = JOB_STORE.create(str(out_path))
         logger.info("Uploaded file stored path=%s job=%s", out_path, job.job_id)
-        return AnalyzeResponse(job_id=job.job_id, status=job.status)
+        return AnalyzeResponse(job_id=job.job_id, status=job.status, input_path=str(out_path))
     except HTTPException:
         raise
     except Exception as exc:
@@ -82,6 +83,7 @@ def analyze(req: AnalyzeRequest):
         return AnalyzeResponse(
             job_id=current.job_id,
             status=current.status,
+            input_path=current.input_path,
             umap_coordinates=current.umap_coordinates,
             cluster_labels=current.cluster_labels,
         )

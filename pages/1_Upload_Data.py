@@ -3,9 +3,10 @@ import pandas as pd
 import os
 import shutil
 import tempfile
+import requests
 
 from core.preprocessing import load_h5ad_safe as _load_h5ad_safe
-from core.preprocessing import load_input_dataset, load_demo_dataset
+from core.preprocessing import load_demo_dataset
 from core.pipeline import load_dataset_by_format
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons
 from utils.auth import get_current_user
@@ -30,6 +31,41 @@ def _ensure_disk_space(required_bytes: int, dest_dir: str, overhead_ratio: float
             f"Not enough free disk space in {dest_dir}. "
             f"Need about {req_gb:.2f} GB, available {free_gb:.2f} GB."
         )
+
+
+def _analyze_via_backend(input_path: str, uploaded_file: tuple | None = None):
+    base = os.getenv("BACKEND_API_URL", "http://127.0.0.1:8000").rstrip("/")
+    try:
+        backend_input_path = input_path
+        if uploaded_file is not None:
+            resp = requests.post(
+                f"{base}/upload",
+                files={"file": uploaded_file},
+                timeout=300,
+            )
+            if resp.status_code >= 400:
+                return None, f"Upload API failed: {resp.text}"
+            backend_input_path = resp.json().get("input_path") or input_path
+        analyze_resp = requests.post(
+            f"{base}/analyze",
+            json={"input_path": backend_input_path},
+            timeout=1800,
+        )
+        if analyze_resp.status_code >= 400:
+            return None, f"Analyze API failed: {analyze_resp.text}"
+        job_id = analyze_resp.json().get("job_id")
+        if not job_id:
+            return None, "Analyze API returned no job_id."
+        results_resp = requests.get(f"{base}/results/{job_id}", timeout=120)
+        if results_resp.status_code >= 400:
+            return None, f"Results API failed: {results_resp.text}"
+        output_path = results_resp.json().get("output_path")
+        if not output_path:
+            return None, "Results API returned no output_path."
+        return _load_h5ad_safe(output_path), None
+    except Exception as exc:
+        return None, f"Backend API request failed: {exc}"
+
 
 st.set_page_config(page_title="Upload Data", layout="wide")
 inject_global_css()
@@ -105,7 +141,14 @@ with tab_upload:
                     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix, dir=tempfile.gettempdir()) as tmp:
                         tmp.write(file.getbuffer())
                         tmp_path = tmp.name
-                    adata = load_dataset_by_format(tmp_path, suffix)
+                    if suffix == ".loom":
+                        adata = load_dataset_by_format(tmp_path, suffix)
+                    else:
+                        with open(tmp_path, "rb") as fh:
+                            adata, api_err = _analyze_via_backend(tmp_path, uploaded_file=(file.name, fh, "application/octet-stream"))
+                        if api_err:
+                            st.error(api_err)
+                            st.stop()
                 else:
                     temp_dir = tempfile.gettempdir()
                     _ensure_disk_space(file.size, temp_dir)
@@ -121,7 +164,14 @@ with tab_upload:
                             tmp.write(chunk)
                         tmp_path = tmp.name
 
-                    adata = load_dataset_by_format(tmp_path, suffix)
+                    if suffix == ".loom":
+                        adata = load_dataset_by_format(tmp_path, suffix)
+                    else:
+                        with open(tmp_path, "rb") as fh:
+                            adata, api_err = _analyze_via_backend(tmp_path, uploaded_file=(file.name, fh, "application/octet-stream"))
+                        if api_err:
+                            st.error(api_err)
+                            st.stop()
             except MemoryError:
                 st.error(
                     "The dataset is too large to load fully into memory in this environment. "
@@ -177,13 +227,20 @@ with tab_path:
             with st.spinner(f"Reading {size_gb:.2f} GB file..."):
                 try:
                     if ".loom" in fmt:
-                        adata = load_input_dataset(file_path, ".loom")
+                        adata = _load_h5ad_safe(file_path)
                     elif ".csv" in fmt:
-                        adata = load_input_dataset(file_path, ".csv")
+                        adata, api_err = _analyze_via_backend(file_path)
+                        if api_err:
+                            st.error(api_err)
+                            st.stop()
                     elif ".mtx" in fmt:
-                        adata = load_input_dataset(file_path, ".mtx")
+                        st.error("MTX backend analyze endpoint currently supports .h5ad/.csv only.")
+                        st.stop()
                     else:
-                        adata = load_input_dataset(file_path, ".h5ad")
+                        adata, api_err = _analyze_via_backend(file_path)
+                        if api_err:
+                            st.error(api_err)
+                            st.stop()
 
                     st.session_state["adata"] = adata
                     st.session_state.setdefault("pipeline_status", {})["Upload"] = "done"
