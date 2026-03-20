@@ -77,6 +77,23 @@ The platform delivers a complete 8-stage analysis experience:
 - GSEApy
 - FPDF2
 
+## Optional FastAPI Backend
+
+The Streamlit app remains fully functional.  
+For API-based execution, run:
+
+```bash
+uvicorn api.main:app --host 0.0.0.0 --port 8000
+```
+
+Available minimal endpoints:
+- `GET /health`
+- `POST /pipeline/qc`
+- `POST /pipeline/cluster`
+- `POST /pipeline/annotate/marker`
+- `POST /pipeline/annotate/celltypist`
+- `POST /pipeline/pathway`
+
 ## Extended Bioinformatics Options
 
 For teams needing additional or alternative workflows, this platform aligns with common ecosystems:

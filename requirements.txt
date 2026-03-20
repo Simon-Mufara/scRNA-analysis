@@ -18,3 +18,5 @@ msal>=1.30.0
 scrublet>=0.2.3
 bbknn>=1.6.0
 harmonypy>=0.0.10
+fastapi>=0.115.0
+uvicorn>=0.30.0
