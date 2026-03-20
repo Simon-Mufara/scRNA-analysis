@@ -26,6 +26,7 @@ dist/
 # Optional local data (keep demo data tracked explicitly)
 # data/*.h5ad
 data/
+uploads/
 data/*.db
 
 # Local environment secrets

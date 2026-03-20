@@ -3,7 +3,6 @@ import pandas as pd
 import os
 import shutil
 import tempfile
-import requests
 import numpy as np
 from anndata import AnnData
 
@@ -13,12 +12,8 @@ from core.pipeline import load_dataset_by_format
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons
 from utils.auth import get_current_user
 
-
-def _set_debug(status: str | None = None, error: str | None = None):
-    if status is not None:
-        st.session_state["debug_last_response_status"] = status
-    if error is not None:
-        st.session_state["debug_last_error"] = error
+MAX_UPLOAD_MB = 200
+MAX_CELLS = 20_000
 
 
 def _load_synthetic_dataset() -> AnnData:
@@ -50,61 +45,22 @@ def _ensure_disk_space(required_bytes: int, dest_dir: str, overhead_ratio: float
         )
 
 
-def _analyze_via_backend(input_path: str, uploaded_file: tuple | None = None):
-    base = os.getenv("BACKEND_API_URL", "http://127.0.0.1:8000").rstrip("/")
-    st.session_state["debug_api_url"] = base
+def _load_local_dataset(input_path: str, fmt: str):
     try:
-        backend_input_path = input_path
-        if uploaded_file is not None:
-            resp = requests.post(
-                f"{base}/upload",
-                files={"file": uploaded_file},
-                timeout=300,
-            )
-            _set_debug(status=f"/upload {resp.status_code}")
-            if resp.status_code >= 400:
-                _set_debug(error=f"Upload API failed: {resp.text}")
-                return None, f"Upload API failed: {resp.text}"
-            upload_json = resp.json()
-            if upload_json.get("status") != "success":
-                _set_debug(error=f"Upload API failed: {upload_json.get('error') or 'unknown error'}")
-                return None, f"Upload API failed: {upload_json.get('error') or 'unknown error'}"
-            backend_input_path = (upload_json.get("data") or {}).get("input_path") or input_path
-        analyze_resp = requests.post(
-            f"{base}/analyze",
-            json={"input_path": backend_input_path},
-            timeout=1800,
-        )
-        _set_debug(status=f"/analyze {analyze_resp.status_code}")
-        if analyze_resp.status_code >= 400:
-            _set_debug(error=f"Analyze API failed: {analyze_resp.text}")
-            return None, f"Analyze API failed: {analyze_resp.text}"
-        analyze_json = analyze_resp.json()
-        if analyze_json.get("status") != "success":
-            _set_debug(error=f"Analyze API failed: {analyze_json.get('error') or 'unknown error'}")
-            return None, f"Analyze API failed: {analyze_json.get('error') or 'unknown error'}"
-        job_id = (analyze_json.get("data") or {}).get("job_id")
-        if not job_id:
-            _set_debug(error="Analyze API returned no job_id.")
-            return None, "Analyze API returned no job_id."
-        results_resp = requests.get(f"{base}/results/{job_id}", timeout=120)
-        _set_debug(status=f"/results {results_resp.status_code}")
-        if results_resp.status_code >= 400:
-            _set_debug(error=f"Results API failed: {results_resp.text}")
-            return None, f"Results API failed: {results_resp.text}"
-        results_json = results_resp.json()
-        if results_json.get("status") != "success":
-            _set_debug(error=f"Results API failed: {results_json.get('error') or 'unknown error'}")
-            return None, f"Results API failed: {results_json.get('error') or 'unknown error'}"
-        output_path = (results_json.get("data") or {}).get("output_path")
-        if not output_path:
-            _set_debug(error="Results API returned no output_path.")
-            return None, "Results API returned no output_path."
-        _set_debug(error="")
-        return _load_h5ad_safe(output_path), None
+        if fmt == ".h5ad":
+            return _load_h5ad_safe(input_path), None
+        return load_dataset_by_format(input_path, fmt), None
     except Exception as exc:
-        _set_debug(error=f"Backend API request failed: {exc}")
-        return None, f"Backend API request failed: {exc}"
+        return None, f"Local dataset load failed: {exc}"
+
+
+def _apply_streamlit_limits(adata: AnnData) -> AnnData:
+    if int(getattr(adata, "n_obs", 0)) > MAX_CELLS:
+        st.warning("Large dataset detected, using subsampling.")
+        rng = np.random.default_rng(42)
+        keep_idx = np.sort(rng.choice(adata.n_obs, size=MAX_CELLS, replace=False))
+        adata = adata[keep_idx].copy()
+    return adata
 
 
 st.set_page_config(page_title="Upload Data", layout="wide")
@@ -115,10 +71,7 @@ is_demo_user = bool(current_user.get("is_demo"))
 
 with st.sidebar:
     with st.expander("Debug", expanded=False):
-        st.caption(f"API URL: {st.session_state.get('debug_api_url', os.getenv('BACKEND_API_URL', 'http://127.0.0.1:8000').rstrip('/'))}")
-        st.caption(f"Last response status: {st.session_state.get('debug_last_response_status', 'N/A')}")
-        last_error = st.session_state.get("debug_last_error", "")
-        st.caption(f"Error: {last_error or 'None'}")
+        st.caption("Mode: Local pipeline (no backend API required)")
 
 # ── Visual banner ──────────────────────────────────────────────────────────────
 banner_col, img_col = st.columns([2, 1])
@@ -179,6 +132,9 @@ with tab_upload:
             st.stop()
 
         file_size_mb = file.size / (1024 ** 2)
+        if file_size_mb > MAX_UPLOAD_MB:
+            st.error("File too large for Streamlit Cloud. Please upload a dataset smaller than 200MB.")
+            st.stop()
         st.info(f"📦 File: **{file.name}** ({file_size_mb:,.1f} MB) — processing...")
         tmp_path = None
         with st.spinner("Loading dataset into memory..."):
@@ -191,10 +147,9 @@ with tab_upload:
                     if suffix == ".loom":
                         adata = load_dataset_by_format(tmp_path, suffix)
                     else:
-                        with open(tmp_path, "rb") as fh:
-                            adata, api_err = _analyze_via_backend(tmp_path, uploaded_file=(file.name, fh, "application/octet-stream"))
-                        if api_err:
-                            st.error(api_err)
+                        adata, load_err = _load_local_dataset(tmp_path, ".h5ad")
+                        if load_err:
+                            st.error(load_err)
                             st.stop()
                 else:
                     temp_dir = tempfile.gettempdir()
@@ -214,10 +169,9 @@ with tab_upload:
                     if suffix == ".loom":
                         adata = load_dataset_by_format(tmp_path, suffix)
                     else:
-                        with open(tmp_path, "rb") as fh:
-                            adata, api_err = _analyze_via_backend(tmp_path, uploaded_file=(file.name, fh, "application/octet-stream"))
-                        if api_err:
-                            st.error(api_err)
+                        adata, load_err = _load_local_dataset(tmp_path, ".h5ad")
+                        if load_err:
+                            st.error(load_err)
                             st.stop()
             except MemoryError:
                 st.error(
@@ -234,7 +188,9 @@ with tab_upload:
             finally:
                 _safe_unlink(tmp_path)
 
+        adata = _apply_streamlit_limits(adata)
         st.session_state["adata"] = adata
+        st.session_state["loaded_file_size_mb"] = float(file_size_mb)
         st.session_state.setdefault("pipeline_status", {})["Upload"] = "done"
         st.success(f"✅ **{file.name}** loaded — {adata.n_obs:,} cells × {adata.n_vars:,} genes")
 
@@ -270,26 +226,34 @@ with tab_path:
         elif not os.path.exists(file_path):
             st.error(f"File not found: `{file_path}`")
         else:
+            file_size_mb = os.path.getsize(file_path) / (1024 ** 2)
+            if file_size_mb > MAX_UPLOAD_MB:
+                st.error("File too large for Streamlit Cloud. Please use a dataset smaller than 200MB.")
+                st.stop()
             size_gb = os.path.getsize(file_path) / (1024 ** 3)
             with st.spinner(f"Reading {size_gb:.2f} GB file..."):
                 try:
                     if ".loom" in fmt:
                         adata = _load_h5ad_safe(file_path)
                     elif ".csv" in fmt:
-                        adata, api_err = _analyze_via_backend(file_path)
-                        if api_err:
-                            st.error(api_err)
+                        adata, load_err = _load_local_dataset(file_path, ".csv")
+                        if load_err:
+                            st.error(load_err)
                             st.stop()
                     elif ".mtx" in fmt:
-                        st.error("MTX backend analyze endpoint currently supports .h5ad/.csv only.")
-                        st.stop()
+                        adata, load_err = _load_local_dataset(file_path, ".mtx")
+                        if load_err:
+                            st.error(load_err)
+                            st.stop()
                     else:
-                        adata, api_err = _analyze_via_backend(file_path)
-                        if api_err:
-                            st.error(api_err)
+                        adata, load_err = _load_local_dataset(file_path, ".h5ad")
+                        if load_err:
+                            st.error(load_err)
                             st.stop()
 
+                    adata = _apply_streamlit_limits(adata)
                     st.session_state["adata"] = adata
+                    st.session_state["loaded_file_size_mb"] = float(file_size_mb)
                     st.session_state.setdefault("pipeline_status", {})["Upload"] = "done"
                     st.success(f"✅ Loaded {size_gb:.2f} GB — {adata.n_obs:,} cells × {adata.n_vars:,} genes")
                 except MemoryError:
@@ -307,8 +271,13 @@ with tab_example:
     with col_a:
         if st.button("🔬 Load PBMC 3k", type="primary"):
             with st.spinner("Downloading PBMC 3k (~60 MB)..."):
-                adata = load_demo_dataset()
+                try:
+                    adata = load_demo_dataset()
+                except Exception:
+                    adata = _load_synthetic_dataset()
+            adata = _apply_streamlit_limits(adata)
             st.session_state["adata"] = adata
+            st.session_state["loaded_file_size_mb"] = None
             st.session_state.setdefault("pipeline_status", {})["Upload"] = "done"
             st.success("✅ PBMC 3k loaded!")
     with col_b:
@@ -322,7 +291,9 @@ adata = st.session_state.get("adata")
 if adata is None:
     st.info("No file uploaded yet. Loaded a small synthetic dataset for demo use.")
     adata = _load_synthetic_dataset()
+    adata = _apply_streamlit_limits(adata)
     st.session_state["adata"] = adata
+    st.session_state["loaded_file_size_mb"] = None
 
 st.divider()
 st.markdown("### 📊 Dataset Overview")

@@ -74,7 +74,7 @@ def analyze(req: AnalyzeRequest):
         job_id = start_analysis(req.input_path)
         payload = AnalyzeResponse(
             job_id=job_id,
-            status="running",
+            status="queued",
             input_path=req.input_path,
             umap_coordinates=None,
             cluster_labels=None,

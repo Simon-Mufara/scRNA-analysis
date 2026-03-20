@@ -1,5 +1,6 @@
 import json
 import hashlib
+import os
 import re
 import sqlite3
 import secrets
@@ -9,9 +10,25 @@ from pathlib import Path
 from uuid import uuid4
 
 import bcrypt
+from dotenv import load_dotenv
 
-DB_PATH = Path(__file__).resolve().parents[1] / "data" / "platform_backend.db"
-COLLAB_STORE_PATH = Path(__file__).resolve().parents[1] / "data" / "collab_store.json"
+load_dotenv()
+
+
+def _resolve_db_path():
+    explicit = os.getenv("SCRNA_DB_PATH", "").strip()
+    if explicit:
+        return Path(explicit).expanduser()
+    database_url = os.getenv("DATABASE_URL", "").strip()
+    if database_url.startswith("sqlite:///"):
+        return Path(database_url.replace("sqlite:///", "", 1)).expanduser()
+    return Path(__file__).resolve().parents[1] / "data" / "platform_backend.db"
+
+
+DB_PATH = _resolve_db_path()
+COLLAB_STORE_PATH = Path(
+    os.getenv("SCRNA_COLLAB_STORE_PATH", str(Path(__file__).resolve().parents[1] / "data" / "collab_store.json"))
+).expanduser()
 
 
 def _now_utc():
@@ -27,8 +44,12 @@ def _parse_utc(ts: str):
 
 def get_conn():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA synchronous = NORMAL")
+    conn.execute("PRAGMA busy_timeout = 30000")
     return conn
 
 
@@ -43,6 +64,7 @@ def init_db():
                 email_verified INTEGER NOT NULL DEFAULT 0,
                 role TEXT NOT NULL,
                 password_hash TEXT,
+                hashed_password TEXT,
                 is_active INTEGER NOT NULL DEFAULT 1,
                 created_at TEXT NOT NULL
             );
@@ -114,6 +136,9 @@ def init_db():
             conn.execute("ALTER TABLE users ADD COLUMN email TEXT")
         if "email_verified" not in cols:
             conn.execute("ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0")
+        if "hashed_password" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN hashed_password TEXT")
+        conn.execute("UPDATE users SET hashed_password = password_hash WHERE (hashed_password IS NULL OR hashed_password = '')")
 
 
 def _get_user_id(conn, username: str):
@@ -131,17 +156,19 @@ def upsert_user(username: str, role: str, password_hash: str = "", email: str = 
     with get_conn() as conn:
         conn.execute(
             """
-            INSERT INTO users (username, email, role, password_hash, created_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO users (username, email, role, password_hash, hashed_password, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(username) DO UPDATE SET
-                email = excluded.email,
+                email = COALESCE(NULLIF(excluded.email, ''), users.email),
                 role = excluded.role,
-                password_hash = excluded.password_hash
+                password_hash = COALESCE(NULLIF(excluded.password_hash, ''), users.password_hash),
+                hashed_password = COALESCE(NULLIF(excluded.hashed_password, ''), users.hashed_password)
             """,
-            (username, email, role, password_hash, now),
+            (username, email, role, password_hash, password_hash, now),
         )
         if email_verified:
             conn.execute("UPDATE users SET email_verified = 1 WHERE username = ?", (username,))
+        conn.commit()
 
 
 def hash_password(password: str):
@@ -312,7 +339,8 @@ def set_platform_admin_password(username: str, current_password: str, new_passwo
     if not authenticate_platform_admin(username, current_password):
         return False
     with get_conn() as conn:
-        conn.execute("UPDATE users SET password_hash = ? WHERE username = ?", (hash_password(new_password), username))
+        new_hash = hash_password(new_password)
+        conn.execute("UPDATE users SET password_hash = ?, hashed_password = ? WHERE username = ?", (new_hash, new_hash, username))
     return True
 
 
@@ -473,7 +501,11 @@ def authenticate_user_account(username: str, password: str, login_mode: str, tea
         return None, "Invalid email or password."
     if not str(user.get("password_hash", "")).startswith("$2"):
         with get_conn() as conn:
-            conn.execute("UPDATE users SET password_hash = ? WHERE username = ?", (hash_password(password), uname))
+            upgraded_hash = hash_password(password)
+            conn.execute(
+                "UPDATE users SET password_hash = ?, hashed_password = ? WHERE username = ?",
+                (upgraded_hash, upgraded_hash, uname),
+            )
 
     team = get_user_team(uname)
     configured_admin = get_platform_admin_username("")
@@ -625,7 +657,8 @@ def reset_password_with_token(username: str, token: str, new_password: str):
         return False, "Invalid or expired reset token."
     token_id = rows[0]["id"]
     with get_conn() as conn:
-        conn.execute("UPDATE users SET password_hash = ? WHERE username = ?", (hash_password(new_password), uname))
+        new_hash = hash_password(new_password)
+        conn.execute("UPDATE users SET password_hash = ?, hashed_password = ? WHERE username = ?", (new_hash, new_hash, uname))
         conn.execute("UPDATE auth_tokens SET used_epoch = ? WHERE id = ?", (now_epoch, token_id))
         conn.execute(
             "UPDATE auth_tokens SET used_epoch = ? WHERE username = ? AND token_type = 'password_reset' AND used_epoch IS NULL",
@@ -664,7 +697,8 @@ def reset_password_with_token_only(token: str, new_password: str):
     token_id = rows[0]["id"]
     uname = rows[0]["username"]
     with get_conn() as conn:
-        conn.execute("UPDATE users SET password_hash = ? WHERE username = ?", (hash_password(new_password), uname))
+        new_hash = hash_password(new_password)
+        conn.execute("UPDATE users SET password_hash = ?, hashed_password = ? WHERE username = ?", (new_hash, new_hash, uname))
         conn.execute("UPDATE auth_tokens SET used_epoch = ? WHERE id = ?", (now_epoch, token_id))
         conn.execute(
             "UPDATE auth_tokens SET used_epoch = ? WHERE username = ? AND token_type = 'password_reset' AND used_epoch IS NULL",
@@ -690,6 +724,7 @@ def delete_user_account(username: str, password: str):
     now_epoch = int(time.time())
     deleted_email = f"deleted+{uname}+{now_epoch}@deleted.local"
     with get_conn() as conn:
+        retired_hash = hash_password(secrets.token_urlsafe(24))
         user_id_row = conn.execute("SELECT id FROM users WHERE username = ?", (uname,)).fetchone()
         user_id = user_id_row["id"] if user_id_row else None
         if user_id is not None:
@@ -697,10 +732,15 @@ def delete_user_account(username: str, password: str):
         conn.execute(
             """
             UPDATE users
-            SET is_active = 0, email_verified = 0, email = ?, password_hash = ?, role = 'individual'
+            SET is_active = 0, email_verified = 0, email = ?, password_hash = ?, hashed_password = ?, role = 'individual'
             WHERE username = ?
             """,
-            (deleted_email, hash_password(secrets.token_urlsafe(24)), uname),
+            (
+                deleted_email,
+                retired_hash,
+                retired_hash,
+                uname,
+            ),
         )
         conn.execute(
             "UPDATE user_sessions SET logout_at = ?, last_seen_at = ? WHERE username = ? AND logout_at IS NULL",

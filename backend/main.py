@@ -2,14 +2,19 @@ import logging
 import os
 import platform
 import socket
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
+
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from backend.routers.jobs import router as jobs_router
 from backend.routers.auth import router as auth_router
-from utils.backend_db import fetch_rows
+from utils.backend_db import DB_PATH, fetch_rows, init_db
+
+load_dotenv()
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -34,11 +39,37 @@ async def startup_log():
     logging.info("=== SERVER STARTED ===")
     logging.info("Running on port %s", port)
     logging.info("Working directory: %s", Path.cwd())
+    logging.info("Database type: SQLite")
+    logging.info("Database path: %s", DB_PATH)
+    try:
+        init_db()
+        logging.debug("Database connected successfully")
+    except Exception as exc:
+        logging.error("Database connection failed: %s", exc)
+        raise
 
 
 @app.get("/health")
 def health():
     return {"status": "ok", "message": "API is running"}
+
+
+@app.get("/health/runtime")
+def runtime_health():
+    def _pkg(name: str):
+        try:
+            return {"installed": True, "version": version(name)}
+        except PackageNotFoundError:
+            return {"installed": False, "version": None}
+
+    return {
+        "status": "ok",
+        "python_version": platform.python_version(),
+        "packages": {
+            "fastapi": _pkg("fastapi"),
+            "scanpy": _pkg("scanpy"),
+        },
+    }
 
 
 @app.get("/debug")

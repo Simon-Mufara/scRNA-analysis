@@ -77,13 +77,34 @@ The platform delivers a complete 8-stage analysis experience:
 - GSEApy
 - FPDF2
 
+## Quick Setup (One Command)
+
+Linux/macOS:
+
+```bash
+bash setup.sh
+```
+
+Windows (PowerShell equivalent):
+
+```powershell
+py -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
 ## Optional FastAPI Backend
 
 The Streamlit app remains fully functional.  
-For API-based execution, run:
+After installing requirements, run:
 
 ```bash
-uvicorn api.main:app --host 0.0.0.0 --port 8000
+# Backend
+uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+
+# Streamlit
+streamlit run app.py
 ```
 
 Available minimal endpoints:

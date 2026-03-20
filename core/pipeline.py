@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from anndata import AnnData
 import pandas as pd

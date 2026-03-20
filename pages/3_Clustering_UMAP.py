@@ -58,22 +58,26 @@ if st.button("▶ Run Full Clustering Pipeline", type="primary"):
     for i, step in enumerate(steps):
         prog.progress((i + 1) / len(steps), text=f"{step}...")
 
-    with st.spinner("Running clustering pipeline..."):
-        adata = run_clustering_step(
-            adata,
-            n_top_genes=n_top,
-            n_pcs=n_pcs,
-            n_neighbors=n_nb,
-            resolution=res,
-            integration_method=integration_method,
-            batch_key=batch_key,
-        )
-        st.session_state["adata"] = adata
-        st.session_state.setdefault("pipeline_status", {})["Clustering"] = "done"
+    try:
+        with st.spinner("Running clustering pipeline..."):
+            adata = run_clustering_step(
+                adata,
+                n_top_genes=n_top,
+                n_pcs=n_pcs,
+                n_neighbors=n_nb,
+                resolution=res,
+                integration_method=integration_method,
+                batch_key=batch_key,
+            )
+            st.session_state["adata"] = adata
+            st.session_state.setdefault("pipeline_status", {})["Clustering"] = "done"
 
-    prog.progress(1.0, text="Done!")
-    n_clusters = adata.obs["leiden"].nunique()
-    st.success(f"✅ Pipeline complete — **{n_clusters} clusters** identified")
+        prog.progress(1.0, text="Done!")
+        n_clusters = adata.obs["leiden"].nunique()
+        st.success(f"✅ Pipeline complete — **{n_clusters} clusters** identified")
+    except Exception:
+        prog.progress(1.0, text="Failed")
+        st.error("Something went wrong during processing. Please try a smaller dataset.")
 
 # ── UMAP visualization ───────────────────────────────────────────────────────
 if "X_umap" not in (adata.obsm if adata is not None else {}):

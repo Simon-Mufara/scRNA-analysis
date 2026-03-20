@@ -566,6 +566,14 @@ def render_sidebar():
             pass
         st.rerun()
     st.sidebar.progress(progress_pct / 100.0, text=f"Progress {progress_pct}%")
+    with st.sidebar.expander("Debug Panel", expanded=False):
+        loaded_size_mb = st.session_state.get("loaded_file_size_mb")
+        adata = st.session_state.get("adata")
+        n_cells = int(getattr(adata, "n_obs", 0)) if adata is not None else 0
+        completed_steps = len(done_steps)
+        st.markdown(f"- File size: {f'{loaded_size_mb:,.1f} MB' if isinstance(loaded_size_mb, (int, float)) else 'N/A'}")
+        st.markdown(f"- Number of cells: {n_cells:,}")
+        st.markdown(f"- Pipeline steps completed: {completed_steps}/{total_steps}")
     with st.sidebar.expander("View pipeline steps", expanded=False):
         for step, icon_name in pipeline_steps:
             is_done = completed.get(step) == "done"

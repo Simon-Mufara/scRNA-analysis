@@ -104,17 +104,21 @@ if "pct_counts_mt" in adata.obs.columns:
 # ── Run button ───────────────────────────────────────────────────────────────
 st.divider()
 if st.button("▶ Run Quality Control Filter", type="primary"):
-    with st.spinner("Filtering cells and genes..."):
-        adata_qc = run_qc_filter(
-            adata,
-            min_genes=min_genes,
-            max_genes=max_genes,
-            min_cells=min_cells,
-            max_mito=max_mito,
-            remove_doublets=remove_doublets,
-        )
-        st.session_state["adata"] = adata_qc
-        st.session_state.setdefault("pipeline_status", {})["QC"] = "done"
+    try:
+        with st.spinner("Filtering cells and genes..."):
+            adata_qc = run_qc_filter(
+                adata,
+                min_genes=min_genes,
+                max_genes=max_genes,
+                min_cells=min_cells,
+                max_mito=max_mito,
+                remove_doublets=remove_doublets,
+            )
+            st.session_state["adata"] = adata_qc
+            st.session_state.setdefault("pipeline_status", {})["QC"] = "done"
+    except Exception:
+        st.error("Something went wrong during processing. Please try a smaller dataset.")
+        st.stop()
 
     summary = adata_qc.uns.get("qc_summary", {})
     removed = summary.get("cells_removed", 0)
