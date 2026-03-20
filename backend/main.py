@@ -8,6 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from backend.routers.jobs import router as jobs_router
+from backend.routers.auth import router as auth_router
+from utils.backend_db import fetch_rows
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -23,6 +25,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(jobs_router)
+app.include_router(auth_router)
 
 
 @app.on_event("startup")
@@ -48,6 +51,13 @@ def debug():
         "python_version": platform.python_version(),
         "hostname": socket.gethostname(),
     }
+
+
+@app.get("/debug/users")
+def debug_users():
+    # DEBUG ONLY
+    rows = fetch_rows("SELECT email FROM users ORDER BY username")
+    return {"debug_only": True, "users": [{"email": row.get("email")} for row in rows]}
 
 
 @app.exception_handler(HTTPException)

@@ -1,5 +1,6 @@
 import os
 import base64
+import re
 from pathlib import Path
 
 import streamlit as st
@@ -183,6 +184,10 @@ def render_login_gate():
                 st.session_state["auth_is_demo"] = str(user_row.get("email", "")).endswith("@demo.local") if user_row else False
                 st.session_state["auth_email"] = user_row.get("email") if user_row else None
                 return
+            try:
+                del st.query_params["auth_sid"]
+            except Exception:
+                pass
         except Exception:
             pass
 
@@ -275,11 +280,15 @@ def render_login_gate():
         pass
     try:
         qp = st.query_params
-        if qp.get("verify_user") and qp.get("verify_token"):
+        verify_token = qp.get("token") or qp.get("verify_token")
+        if verify_token:
             try:
-                from utils.backend_db import verify_email_with_token
+                from utils.backend_db import verify_email_with_token, verify_email_with_token_only
 
-                ok, err = verify_email_with_token(qp.get("verify_user"), qp.get("verify_token"))
+                if qp.get("verify_user"):
+                    ok, err = verify_email_with_token(qp.get("verify_user"), verify_token)
+                else:
+                    ok, err = verify_email_with_token_only(verify_token)
                 if ok:
                     st.success("Email verified successfully from your inbox link. You can now sign in.")
                 else:
@@ -287,6 +296,7 @@ def render_login_gate():
             except Exception:
                 st.error("Verification failed. Please try again.")
             try:
+                del st.query_params["token"]
                 del st.query_params["verify_user"]
                 del st.query_params["verify_token"]
             except Exception:
@@ -441,31 +451,40 @@ def render_login_gate():
                 st.caption("Enter your exact team/workspace name.")
             reg_submit = st.form_submit_button("Create account", type="primary", use_container_width=True)
         if reg_submit:
-            if reg_password != reg_password_confirm:
+            reg_username_clean = (reg_username or "").strip().lower()
+            reg_email_clean = (reg_email or "").strip().lower()
+            team_name_clean = (reg_team or "").strip()
+            if not re.fullmatch(r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$", reg_email_clean):
+                st.error("Enter a valid email address.")
+            elif len(reg_password or "") < 8:
+                st.error("Password must be at least 8 characters.")
+            elif reg_password != reg_password_confirm:
                 st.error("Passwords do not match.")
             else:
                 try:
                     from utils.backend_db import issue_email_verification_token, register_user_account
 
                     ok, err = register_user_account(
-                        reg_username,
+                        reg_username_clean,
                         reg_password,
-                        reg_email,
-                        reg_team if in_group == "Yes" else "",
+                        reg_email_clean,
+                        team_name_clean if in_group == "Yes" else "",
                     )
                 except Exception:
                     ok, err = False, "Failed to create account."
                 if ok:
+                    st.session_state["recovered_username"] = reg_username_clean
                     try:
-                        token, token_err = issue_email_verification_token(reg_username)
+                        token, token_err = issue_email_verification_token(reg_username_clean)
                     except Exception:
                         token, token_err = None, "Verification token unavailable."
+                    st.success("Account created successfully. You can log in immediately with your email or username.")
                     if token:
                         try:
                             from utils.backend_db import get_user_by_username
                             from utils.mailer import mail_enabled, send_verification_email
 
-                            user_row = get_user_by_username(reg_username.strip().lower())
+                            user_row = get_user_by_username(reg_username_clean)
                             if user_row and user_row.get("email") and mail_enabled():
                                 sent, mail_err = send_verification_email(
                                     user_row["email"], user_row["username"], token

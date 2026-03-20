@@ -1,11 +1,14 @@
 import json
 import hashlib
+import re
 import sqlite3
 import secrets
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
+
+import bcrypt
 
 DB_PATH = Path(__file__).resolve().parents[1] / "data" / "platform_backend.db"
 COLLAB_STORE_PATH = Path(__file__).resolve().parents[1] / "data" / "collab_store.json"
@@ -142,15 +145,17 @@ def upsert_user(username: str, role: str, password_hash: str = "", email: str = 
 
 
 def hash_password(password: str):
-    salt = secrets.token_hex(16)
-    iterations = 200_000
-    digest = hashlib.pbkdf2_hmac("sha256", (password or "").encode("utf-8"), salt.encode("utf-8"), iterations)
-    return f"pbkdf2_sha256${iterations}${salt}${digest.hex()}"
+    return bcrypt.hashpw((password or "").encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(password: str, password_hash: str):
     if not password_hash:
         return False
+    if str(password_hash).startswith("$2"):
+        try:
+            return bcrypt.checkpw((password or "").encode("utf-8"), str(password_hash).encode("utf-8"))
+        except ValueError:
+            return False
     if password_hash.startswith("pbkdf2_sha256$"):
         try:
             _, iter_str, salt, expected_hex = password_hash.split("$", 3)
@@ -182,6 +187,10 @@ def _get_user_row_by_email(email: str):
         ((email or "").strip().lower(),),
     )
     return rows[0] if rows else None
+
+
+def _is_valid_email(email: str):
+    return bool(re.fullmatch(r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$", (email or "").strip()))
 
 
 def get_user_by_username(username: str):
@@ -388,7 +397,7 @@ def register_user_account(username: str, password: str, email: str, team_name: s
     if _get_user_row(uname):
         return False, "Username already exists."
     email_clean = (email or "").strip().lower()
-    if not email_clean or "@" not in email_clean:
+    if not _is_valid_email(email_clean):
         return False, "Valid email is required."
     email_exists = fetch_rows("SELECT username FROM users WHERE email = ?", (email_clean,))
     if email_exists:
@@ -396,6 +405,9 @@ def register_user_account(username: str, password: str, email: str, team_name: s
 
     role = "team" if team_name.strip() else "individual"
     upsert_user(uname, role, hash_password(password), email=email_clean, email_verified=0)
+    created = _get_user_row(uname)
+    if not created or (created.get("email") or "").strip().lower() != email_clean:
+        return False, "Failed to create account."
     if team_name.strip():
         ensure_team(team_name.strip())
         assign_user_to_team(uname, team_name.strip(), is_admin=False)
@@ -450,14 +462,17 @@ def authenticate_user_account(username: str, password: str, login_mode: str, tea
     identifier = (username or "").strip().lower()
     user = _get_user_row_by_email(identifier) if "@" in identifier else _get_user_row(identifier)
     if not user:
-        return None, "Invalid username or password."
+        return None, "Invalid email or password."
     uname = user["username"]
     if not user.get("is_active"):
         return None, "Account is inactive."
     if not user.get("email_verified") and require_verified_email_for_login():
         return None, "Email is not verified. Verify your email before login."
     if not verify_password(password, user.get("password_hash", "")):
-        return None, "Invalid username or password."
+        return None, "Invalid email or password."
+    if not str(user.get("password_hash", "")).startswith("$2"):
+        with get_conn() as conn:
+            conn.execute("UPDATE users SET password_hash = ? WHERE username = ?", (hash_password(password), uname))
 
     team = get_user_team(uname)
     configured_admin = get_platform_admin_username("")
@@ -539,12 +554,45 @@ def verify_email_with_token(username: str, token: str):
     return True, None
 
 
+def verify_email_with_token_only(token: str):
+    if not (token or "").strip():
+        return False, "Token is required."
+    token_hash = _token_hash(token)
+    now_epoch = int(time.time())
+    rows = fetch_rows(
+        """
+        SELECT id, username FROM auth_tokens
+        WHERE token_type = 'email_verify'
+          AND token_hash = ? AND used_epoch IS NULL AND expires_epoch >= ?
+        ORDER BY created_at DESC LIMIT 1
+        """,
+        (token_hash, now_epoch),
+    )
+    if not rows:
+        return False, "Invalid or expired verification token."
+    token_id = rows[0]["id"]
+    uname = rows[0]["username"]
+    with get_conn() as conn:
+        conn.execute("UPDATE users SET email_verified = 1 WHERE username = ?", (uname,))
+        conn.execute("UPDATE auth_tokens SET used_epoch = ? WHERE id = ?", (now_epoch, token_id))
+    return True, None
+
+
 def issue_password_reset_token(email: str):
     email_clean = (email or "").strip().lower()
     user = _get_user_row_by_email(email_clean)
     if not user:
         return None, "No account found for this email."
     return _issue_token(user["username"], "password_reset", 1800), None
+
+
+def issue_password_reset_token_ttl(email: str, ttl_seconds: int = 900):
+    email_clean = (email or "").strip().lower()
+    user = _get_user_row_by_email(email_clean)
+    if not user:
+        return None, "No account found for this email."
+    safe_ttl = max(60, int(ttl_seconds or 900))
+    return _issue_token(user["username"], "password_reset", safe_ttl), None
 
 
 def issue_password_reset_token_for_username(username: str):
@@ -557,6 +605,8 @@ def issue_password_reset_token_for_username(username: str):
 
 def reset_password_with_token(username: str, token: str, new_password: str):
     uname = (username or "").strip().lower()
+    if not uname or not (token or "").strip():
+        return False, "Username and token are required."
     if len(new_password or "") < 8:
         return False, "Password must be at least 8 characters."
     now_epoch = int(time.time())
@@ -576,6 +626,14 @@ def reset_password_with_token(username: str, token: str, new_password: str):
     with get_conn() as conn:
         conn.execute("UPDATE users SET password_hash = ? WHERE username = ?", (hash_password(new_password), uname))
         conn.execute("UPDATE auth_tokens SET used_epoch = ? WHERE id = ?", (now_epoch, token_id))
+        conn.execute(
+            "UPDATE auth_tokens SET used_epoch = ? WHERE username = ? AND token_type = 'password_reset' AND used_epoch IS NULL",
+            (now_epoch, uname),
+        )
+        conn.execute(
+            "UPDATE user_sessions SET logout_at = ?, last_seen_at = ? WHERE username = ? AND logout_at IS NULL",
+            (_now_utc(), _now_utc(), uname),
+        )
     return True, None
 
 
@@ -584,6 +642,38 @@ def reset_password_with_email_token(email: str, token: str, new_password: str):
     if not user:
         return False, "No account found for this email."
     return reset_password_with_token(user["username"], token, new_password)
+
+
+def reset_password_with_token_only(token: str, new_password: str):
+    if len(new_password or "") < 8:
+        return False, "Password must be at least 8 characters."
+    token_hash = _token_hash(token)
+    now_epoch = int(time.time())
+    rows = fetch_rows(
+        """
+        SELECT id, username FROM auth_tokens
+        WHERE token_type = 'password_reset'
+          AND token_hash = ? AND used_epoch IS NULL AND expires_epoch >= ?
+        ORDER BY created_at DESC LIMIT 1
+        """,
+        (token_hash, now_epoch),
+    )
+    if not rows:
+        return False, "Invalid or expired reset token."
+    token_id = rows[0]["id"]
+    uname = rows[0]["username"]
+    with get_conn() as conn:
+        conn.execute("UPDATE users SET password_hash = ? WHERE username = ?", (hash_password(new_password), uname))
+        conn.execute("UPDATE auth_tokens SET used_epoch = ? WHERE id = ?", (now_epoch, token_id))
+        conn.execute(
+            "UPDATE auth_tokens SET used_epoch = ? WHERE username = ? AND token_type = 'password_reset' AND used_epoch IS NULL",
+            (now_epoch, uname),
+        )
+        conn.execute(
+            "UPDATE user_sessions SET logout_at = ?, last_seen_at = ? WHERE username = ? AND logout_at IS NULL",
+            (_now_utc(), _now_utc(), uname),
+        )
+    return True, None
 
 
 def delete_user_account(username: str, password: str):

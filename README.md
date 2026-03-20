@@ -121,7 +121,8 @@ Use these options for method cross-checking, reproducibility audits, and institu
   - `SMTP_PASSWORD`
   - `SMTP_FROM_EMAIL`
   - `SMTP_USE_SSL` (`true` or `false`)
-  - `APP_PUBLIC_URL` (optional; used to embed verify/reset links)
+  - `FRONTEND_URL` (recommended; used to embed full frontend links like `/verify?token=...`)
+  - `APP_PUBLIC_URL` (optional fallback for legacy setups)
 - Local demo login remains available for development/testing only.
 - Demo users are restricted to the embedded PBMC example dataset; custom uploads require a created account or Entra sign-in.
 

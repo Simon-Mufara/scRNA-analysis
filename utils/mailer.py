@@ -1,8 +1,14 @@
 import os
 import smtplib
+import ssl
+import time
+import logging
 from email.message import EmailMessage
 from email.utils import formataddr
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse, parse_qsl, urlunparse
+
+
+logger = logging.getLogger(__name__)
 
 
 def _cfg(key: str, default: str = ""):
@@ -48,36 +54,56 @@ def _smtp_client():
     password = _cfg("SMTP_PASSWORD")
     timeout = int(_cfg("SMTP_TIMEOUT_SECONDS", "10"))
     if use_ssl:
-        client = smtplib.SMTP_SSL(host, port, timeout=timeout)
+        client = smtplib.SMTP_SSL(host, port, timeout=timeout, context=ssl.create_default_context())
     else:
         client = smtplib.SMTP(host, port, timeout=timeout)
+        client.ehlo()
         if use_starttls:
-            client.starttls()
+            client.starttls(context=ssl.create_default_context())
+            client.ehlo()
     client.login(username, password)
     return client
 
 
 def send_email(to_email: str, subject: str, text_body: str, html_body: str = ""):
-    if not (to_email or "").strip():
+    normalized_to = (to_email or "").strip().lower()
+    if not normalized_to:
         return False, "Recipient email is required."
+    if any(c in normalized_to for c in ("\r", "\n")):
+        return False, "Invalid recipient email."
     if not mail_enabled():
         return False, "SMTP is not configured."
     msg = EmailMessage()
     msg["Subject"] = subject
     from_email = _cfg("SMTP_FROM_EMAIL")
     msg["From"] = formataddr(("SingleCell Explorer", from_email))
-    msg["To"] = (to_email or "").strip().lower()
+    msg["To"] = normalized_to
     msg["Reply-To"] = from_email
     msg["X-Product"] = "SingleCell Clinical & Research Explorer"
     msg.set_content(text_body)
     if html_body:
         msg.add_alternative(html_body, subtype="html")
-    try:
-        with _smtp_client() as client:
-            client.send_message(msg)
-        return True, None
-    except Exception as exc:
-        return False, str(exc)
+    retries = max(1, int(_cfg("SMTP_RETRY_COUNT", "2")))
+    last_error = None
+    for attempt in range(1, retries + 1):
+        try:
+            with _smtp_client() as client:
+                client.send_message(msg)
+            logger.info("Email sent successfully: recipient=%s subject=%s", normalized_to, subject)
+            return True, None
+        except Exception as exc:
+            last_error = str(exc)
+            logger.error(
+                "Email send failed: recipient=%s subject=%s attempt=%s/%s error=%s",
+                normalized_to,
+                subject,
+                attempt,
+                retries,
+                last_error,
+            )
+            if attempt < retries:
+                time.sleep(0.5)
+    return False, last_error
 
 
 def get_mail_diagnostics():
@@ -116,7 +142,7 @@ def get_mail_diagnostics():
 
 
 def _public_base_url():
-    base = _cfg("APP_PUBLIC_URL", "").strip().rstrip("/")
+    base = _cfg("FRONTEND_URL", "").strip().rstrip("/") or _cfg("APP_PUBLIC_URL", "").strip().rstrip("/")
     if base and not base.lower().startswith(("http://", "https://")):
         base = f"https://{base}"
     return base
@@ -130,6 +156,35 @@ def _build_app_url(base: str, params: dict):
         return base
     sep = "&" if "?" in base else "?"
     return f"{base}{sep}{q}"
+
+
+def _safe_log_link(url: str):
+    if not url:
+        return ""
+    parsed = urlparse(url)
+    redacted = []
+    for key, value in parse_qsl(parsed.query, keep_blank_values=True):
+        if key.lower() in {"token", "verify_token", "reset_token"} and value:
+            redacted.append((key, "***redacted***"))
+        else:
+            redacted.append((key, value))
+    return urlunparse(parsed._replace(query=urlencode(redacted)))
+
+
+def _support_contact():
+    return _cfg("SUPPORT_EMAIL", "").strip() or _cfg("SMTP_FROM_EMAIL", "").strip()
+
+
+def _support_text():
+    support = _support_contact()
+    return f"Need help? Contact support at {support}.\n" if support else "Need help? Contact your platform support team.\n"
+
+
+def _support_html():
+    support = _support_contact()
+    if support:
+        return f"<br><br><b>Support:</b> <a href='mailto:{support}'>{support}</a>"
+    return "<br><br><b>Support:</b> Contact your platform support team."
 
 
 def _brand_html_email(title: str, subtitle: str, body_html: str, cta_label: str = "", cta_url: str = "", code: str = ""):
@@ -182,23 +237,48 @@ def _brand_html_email(title: str, subtitle: str, body_html: str, cta_label: str 
 
 def send_verification_email(to_email: str, username: str, token: str):
     base = _public_base_url()
-    verify_url = _build_app_url(base, {"verify_user": username, "verify_token": token})
+    login_url = base
+    verify_url = _build_app_url(f"{base}/verify" if base else "", {"token": token})
+    logger.info("Generated verification link: recipient=%s link=%s", (to_email or "").strip().lower(), _safe_log_link(verify_url))
     body = (
         f"Hello {username},\n\n"
         "Welcome to SingleCell Clinical & Research Explorer.\n\n"
-        "Your account was created successfully.\n"
-        "Please verify your email to activate secure sign-in.\n\n"
-        "One-time verification code:\n"
-        f"{token}\n\n"
-        + (f"Verify now:\n{verify_url}\n\n" if verify_url else "")
+        "Your account has been created successfully.\n"
+        + (f"Secure login link:\n{login_url}\n\n" if login_url else "")
+        + "Please verify your email to activate secure sign-in.\n\n"
+        + (f"Verify Account:\n{verify_url}\n\n" if verify_url else "")
+        + "One-time verification code:\n"
+        + f"{token}\n\n"
+        + "Password reset instructions:\n"
+        + "If you forget your password, use the 'Forgot password' option on the sign-in page to generate a secure reset link.\n"
+        + "For your security, we will never send or share passwords by email.\n\n"
+        + "Security Notice\n"
+        + "- Passwords are encrypted using industry-standard hashing.\n"
+        + "- Passwords are never stored in plain text.\n"
+        + "- Do not share your credentials with anyone.\n\n"
+        + _support_text()
+        + "Your account security is our priority, and we monitor authentication systems continuously.\n\n"
         + "This code/link expires automatically for your security.\n\n"
-        "SingleCell Explorer Security Team"
+        + "SingleCell Explorer Security Team"
     )
     html = _brand_html_email(
         title="Verify your account",
         subtitle="Account security confirmation",
-        body_html=f"Hello <b>{username}</b>,<br><br>Your account has been created. Verify your email to activate secure access.",
-        cta_label="Verify Email",
+        body_html=(
+            f"Hello <b>{username}</b>,<br><br>"
+            "Welcome to SingleCell Clinical &amp; Research Explorer. Your account has been created successfully."
+            + (f"<br><br><b>Secure login link:</b> <a href='{login_url}'>{login_url}</a>" if login_url else "")
+            + "<br><br>Please verify your email to activate secure access."
+            + (f"<br><br><b>Verify Account:</b> <a href='{verify_url}'>{verify_url}</a>" if verify_url else "")
+            + "<br><br><b>Password reset instructions:</b> If you forget your password, use the <i>Forgot password</i> option on the sign-in page to generate a secure reset link. We do not send or share passwords by email."
+            + "<br><br><b>Security Notice</b><br>"
+            + "&bull; Passwords are encrypted using industry-standard hashing.<br>"
+            + "&bull; Passwords are never stored in plain text.<br>"
+            + "&bull; Do not share your credentials with anyone."
+            + _support_html()
+            + "<br><br>Your account security is our priority, and we monitor authentication systems continuously."
+        ),
+        cta_label="Verify Account",
         cta_url=verify_url,
         code=token,
     )
@@ -208,22 +288,65 @@ def send_verification_email(to_email: str, username: str, token: str):
 def send_password_reset_email(to_email: str, username: str, token: str):
     base = _public_base_url()
     reset_url = _build_app_url(base, {"reset_email": to_email, "reset_token": token})
+    logger.info("Generated password reset link: recipient=%s link=%s", (to_email or "").strip().lower(), _safe_log_link(reset_url))
     body = (
         f"Hello {username},\n\n"
         "We received a password reset request for your SingleCell Explorer account.\n\n"
-        "Use this one-time reset token:\n"
-        f"{token}\n\n"
-        + (f"Direct reset link:\n{reset_url}\n\n" if reset_url else "")
+        + (f"Reset Password:\n{reset_url}\n\n" if reset_url else "")
+        + "Use this one-time reset token:\n"
+        + f"{token}\n\n"
+        + "For your security, we do not send or share passwords by email.\n"
+        + "Security reassurance: your password is protected with encrypted hashing and never stored in plain text.\n"
+        + _support_text()
         + "If you did not request this, you can ignore this email.\n\n"
         "SingleCell Explorer Security Team"
     )
     html = _brand_html_email(
         title="Reset your password",
         subtitle="Account recovery request",
-        body_html=f"Hello <b>{username}</b>,<br><br>We received a password reset request for your account.",
+        body_html=(
+            f"Hello <b>{username}</b>,<br><br>"
+            "We received a password reset request for your account."
+            + (f"<br><br><b>Reset Password:</b> <a href='{reset_url}'>{reset_url}</a>" if reset_url else "")
+            + "<br><br>For your security, we do not send or share passwords by email."
+            + "<br><b>Security reassurance:</b> your password is protected with encrypted hashing and never stored in plain text."
+            + _support_html()
+        ),
         cta_label="Reset Password",
         cta_url=reset_url,
         code=token,
+    )
+    return send_email(to_email, "Reset your SingleCell Explorer password", body, html)
+
+
+def send_password_reset_link_email(to_email: str, username: str, token: str):
+    base = _public_base_url()
+    reset_url = _build_app_url(f"{base}/reset-password" if base else "", {"token": token})
+    logger.info("Generated password reset link: recipient=%s link=%s", (to_email or "").strip().lower(), _safe_log_link(reset_url))
+    body = (
+        f"Hello {username},\n\n"
+        "We received a password reset request for your SingleCell Explorer account.\n\n"
+        + (f"Reset Password:\n{reset_url}\n\n" if reset_url else "")
+        + "For your security, we do not send or share passwords by email.\n"
+        + "Security reassurance: your password is protected with encrypted hashing and never stored in plain text.\n"
+        + _support_text()
+        + "This reset link expires in 15 minutes.\n"
+        "If you did not request this, you can ignore this email.\n\n"
+        "SingleCell Explorer Security Team"
+    )
+    html = _brand_html_email(
+        title="Reset your password",
+        subtitle="Secure account recovery",
+        body_html=(
+            f"Hello <b>{username}</b>,<br><br>"
+            "Use the secure link below to reset your password. This link expires in 15 minutes."
+            + (f"<br><br><b>Reset Password:</b> <a href='{reset_url}'>{reset_url}</a>" if reset_url else "")
+            + "<br><br>For your security, we do not send or share passwords by email."
+            + "<br><b>Security reassurance:</b> your password is protected with encrypted hashing and never stored in plain text."
+            + _support_html()
+        ),
+        cta_label="Reset Password",
+        cta_url=reset_url,
     )
     return send_email(to_email, "Reset your SingleCell Explorer password", body, html)
 
