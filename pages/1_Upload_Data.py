@@ -12,7 +12,7 @@ from core.pipeline import load_dataset_by_format
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons
 from utils.auth import get_current_user
 
-MAX_UPLOAD_MB = 200
+MAX_UPLOAD_MB = 100_000  # 100 GB limit for large HPC analysis
 MAX_CELLS = 20_000
 
 
@@ -133,7 +133,7 @@ with tab_upload:
 
         file_size_mb = file.size / (1024 ** 2)
         if file_size_mb > MAX_UPLOAD_MB:
-            st.error("File too large for Streamlit Cloud. Please upload a dataset smaller than 200MB.")
+            st.error(f"File too large. Maximum upload size is {MAX_UPLOAD_MB:,} MB (~100 GB).")
             st.stop()
         st.info(f"📦 File: **{file.name}** ({file_size_mb:,.1f} MB) — processing...")
         tmp_path = None

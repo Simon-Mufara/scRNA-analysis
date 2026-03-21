@@ -84,6 +84,10 @@ if "X_umap" not in (adata.obsm if adata is not None else {}):
     st.info("Run the clustering pipeline above to generate UMAP coordinates.")
     st.stop()
 
+if "leiden" not in adata.obs.columns:
+    st.warning("⚠️ Leiden clusters not found. Run the clustering pipeline to generate clusters.")
+    st.stop()
+
 st.divider()
 st.markdown("### 🗺️ UMAP Explorer")
 

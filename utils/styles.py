@@ -557,14 +557,7 @@ def render_sidebar():
         '<div style="border-top:1px solid #161B22;margin-top:8px;padding-top:6px;"></div>'
     )
     st.sidebar.markdown(sidebar_html, unsafe_allow_html=True)
-    theme_choice = st.sidebar.selectbox("Theme", ["Dark", "Light"], index=0 if st.session_state.get("theme_mode") == "Dark" else 1)
-    if theme_choice != st.session_state.get("theme_mode"):
-        st.session_state["theme_mode"] = theme_choice
-        try:
-            st.query_params["theme_mode"] = theme_choice
-        except Exception:
-            pass
-        st.rerun()
+    st.session_state["theme_mode"] = "Dark"  # Force dark mode for better data visualization
     st.sidebar.progress(progress_pct / 100.0, text=f"Progress {progress_pct}%")
     with st.sidebar.expander("Debug Panel", expanded=False):
         loaded_size_mb = st.session_state.get("loaded_file_size_mb")
@@ -739,7 +732,8 @@ def render_nav_buttons(current_idx: int):
         prev_path, prev_label, prev_icon = PAGES[prev_idx]
         with col_prev:
             if st.button(f"← {prev_icon} {prev_label}", key="nav_prev", use_container_width=True):
-                st.switch_page(f"{prev_path}.py")
+                page_to_switch = prev_path if prev_path == "app" else f"{prev_path}.py"
+                st.switch_page(page_to_switch)
 
     with col_center:
         # Progress dots
@@ -760,4 +754,5 @@ def render_nav_buttons(current_idx: int):
         next_path, next_label, next_icon = PAGES[next_idx]
         with col_next:
             if st.button(f"{next_icon} {next_label} →", key="nav_next", type="primary", use_container_width=True):
-                st.switch_page(f"{next_path}.py")
+                page_to_switch = next_path if next_path == "app" else f"{next_path}.py"
+                st.switch_page(page_to_switch)

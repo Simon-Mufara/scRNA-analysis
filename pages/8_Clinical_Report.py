@@ -297,7 +297,7 @@ if not ct_counts.empty or (pathway_df is not None and not pathway_df.empty):
             st.plotly_chart(fig_pw, use_container_width=True)
 
 # ── PDF builder ───────────────────────────────────────────────────────────────
-def build_pdf() -> bytes:
+def build_pdf(report_date_str: str, analyst_name: str, project_name: str) -> bytes:
     try:
         from fpdf import FPDF
     except ImportError:
@@ -317,7 +317,7 @@ def build_pdf() -> bytes:
             self.set_font("DV", "", 8)
             self.set_text_color(139, 148, 158)
             self.set_xy(10, 17)
-            self.cell(0, 5, f"Generated: {report_date}  |  Analyst: {analyst or 'N/A'}  |  Project: {project or 'N/A'}")
+            self.cell(0, 5, f"Generated: {report_date_str}  |  Analyst: {analyst_name or 'N/A'}  |  Project: {project_name or 'N/A'}")
 
         def footer(self):
             self.set_y(-12)
@@ -466,7 +466,7 @@ with dl1:
         file_name=f"scRNA_report_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
         mime="text/plain", use_container_width=True)
 with dl2:
-    pdf_bytes = build_pdf()
+    pdf_bytes = build_pdf(report_date, analyst, project)
     if pdf_bytes:
         st.download_button("📕 PDF Report", data=pdf_bytes,
             file_name=f"scRNA_clinical_report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
