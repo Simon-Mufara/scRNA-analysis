@@ -739,7 +739,7 @@ def render_nav_buttons(current_idx: int):
         prev_path, prev_label, prev_icon = PAGES[prev_idx]
         with col_prev:
             if st.button(f"← {prev_icon} {prev_label}", key="nav_prev", use_container_width=True):
-                page_file = f"{prev_path}.py" if prev_path != "app" else "app"
+                page_file = "app.py" if prev_path == "app" else f"{prev_path}.py"
                 st.switch_page(page_file)
 
     with col_center:
@@ -761,5 +761,5 @@ def render_nav_buttons(current_idx: int):
         next_path, next_label, next_icon = PAGES[next_idx]
         with col_next:
             if st.button(f"{next_icon} {next_label} →", key="nav_next", type="primary", use_container_width=True):
-                page_file = f"{next_path}.py" if next_path != "app" else "app"
+                page_file = "app.py" if next_path == "app" else f"{next_path}.py"
                 st.switch_page(page_file)
