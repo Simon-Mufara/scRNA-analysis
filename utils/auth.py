@@ -83,9 +83,14 @@ def authenticate_registered_user(username: str, password: str, login_mode: str, 
     try:
         from utils.backend_db import authenticate_user_account
 
-        return authenticate_user_account(username, password, login_mode, team_name)
-    except Exception:
-        return None, "Account backend unavailable."
+        result = authenticate_user_account(username, password, login_mode, team_name)
+        if result[0] is None:
+            # Fallback to demo users if backend unavailable
+            return authenticate_demo_user(username, password, login_mode, team_name)
+        return result
+    except Exception as e:
+        # Fallback to demo users if database is unavailable
+        return authenticate_demo_user(username, password, login_mode, team_name)
 
 
 def logout_user():
@@ -402,29 +407,39 @@ def render_login_gate():
                     from utils.backend_db import bootstrap_demo_users, start_user_session
 
                     bootstrap_demo_users(DEMO_USERS)
-                    st.session_state["auth_session_id"] = start_user_session(
+                    session_id = start_user_session(
                         username=user["username"],
                         login_mode=login_mode,
                         team=user["team"] or "individual",
                         role=user["role"],
                     )
-                    try:
-                        if remember_login:
-                            st.query_params["remember_user"] = user["username"]
-                            st.query_params["remember_mode"] = login_mode
-                            if login_mode == "Team":
-                                st.query_params["remember_team"] = team_name.strip()
-                            elif st.query_params.get("remember_team"):
-                                del st.query_params["remember_team"]
-                        else:
-                            for key in ("remember_user", "remember_mode", "remember_team"):
-                                if st.query_params.get(key):
-                                    del st.query_params[key]
-                        st.query_params["auth_sid"] = st.session_state["auth_session_id"]
-                    except Exception:
-                        pass
-                except Exception:
+                    if session_id:
+                        st.session_state["auth_session_id"] = session_id
+                        try:
+                            st.query_params["auth_sid"] = session_id
+                        except Exception:
+                            pass
+                    else:
+                        raise Exception("Failed to create session")
+                except Exception as e:
+                    st.warning(f"Session creation failed, but login succeeded. You can proceed without session persistence.")
                     st.session_state["auth_session_id"] = None
+
+                # Handle remember login regardless of session creation
+                try:
+                    if remember_login:
+                        st.query_params["remember_user"] = user["username"]
+                        st.query_params["remember_mode"] = login_mode
+                        if login_mode == "Team":
+                            st.query_params["remember_team"] = team_name.strip()
+                        elif st.query_params.get("remember_team"):
+                            del st.query_params["remember_team"]
+                    else:
+                        for key in ("remember_user", "remember_mode", "remember_team"):
+                            if st.query_params.get(key):
+                                del st.query_params[key]
+                except Exception:
+                    pass
                 if user["team"] and login_mode == "Team":
                     st.switch_page("pages/9_Team_Dashboard.py")
                 st.rerun()

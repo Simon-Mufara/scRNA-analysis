@@ -1,4 +1,5 @@
 [server]
+# 100 GB file upload limit for large HPC datasets
 maxUploadSize = 102400
 enableCORS = false
 enableXsrfProtection = false
@@ -7,6 +8,7 @@ address = "0.0.0.0"
 port = 8501
 
 [theme]
+# Dark theme only - provides better visibility for data visualization
 primaryColor     = "#00D4FF"
 backgroundColor  = "#0E1117"
 secondaryBackgroundColor = "#161B22"

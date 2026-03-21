@@ -13,155 +13,9 @@ PALETTE = [
 ]
 
 def inject_global_css():
-    theme_mode = st.session_state.get("theme_mode", "Dark")
-    if theme_mode == "Light":
-        st.markdown(
-            """
-            <style>
-            :root {
-                --bg: #F7F9FC;
-                --surface: #FFFFFF;
-                --surface-2: #F3F6FB;
-                --border: #D9E2EC;
-                --text: #0F172A;
-                --muted: #475569;
-                --accent: #0284C7;
-                --accent-soft: #E0F2FE;
-            }
-            [data-testid="stAppViewContainer"] { background: var(--bg) !important; }
-            [data-testid="stMain"] { background: transparent !important; }
-            [data-testid="stSidebar"] { background: var(--surface) !important; border-right: 1px solid var(--border) !important; }
-            [data-testid="stSidebarContent"] { background: var(--surface) !important; }
-            [data-testid="stHeader"] {
-                background: #F8FAFC !important;
-                border-bottom: 1px solid var(--border) !important;
-            }
-            [data-testid="stHeader"] * {
-                color: #0F172A !important;
-            }
-            .block-container { max-width: 1380px !important; color: var(--text) !important; }
-            [data-testid="stSidebarNavItems"] a {
-                color: #334155 !important;
-                border: 1px solid transparent !important;
-                border-radius: 8px !important;
-            }
-            [data-testid="stSidebarNavItems"] a:hover {
-                background: #EFF6FF !important;
-                color: #0F172A !important;
-                border-color: #BFDBFE !important;
-            }
-            [data-testid="stSidebarNavItems"] a[aria-current="page"] {
-                background: #E0F2FE !important;
-                color: #0369A1 !important;
-                border-color: #7DD3FC !important;
-                font-weight: 700 !important;
-            }
-
-            h1, h2, h3, h4, h5, h6, p, span, label, div { color: var(--text) !important; }
-            small, .caption, [data-testid="stCaptionContainer"], [data-testid="stMarkdownContainer"] p { color: var(--muted) !important; }
-
-            [data-testid="metric-container"] {
-                background: var(--surface) !important;
-                border: 1px solid var(--border) !important;
-                box-shadow: 0 2px 12px rgba(15, 23, 42, 0.05) !important;
-            }
-            [data-testid="stMetricValue"] { color: var(--accent) !important; }
-            [data-testid="stMetricLabel"] { color: var(--muted) !important; }
-
-            [data-testid="stDataFrame"] {
-                border: 1px solid var(--border) !important;
-                background: var(--surface) !important;
-            }
-
-            [data-testid="baseButton-primary"] {
-                background: linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%) !important;
-                color: #FFFFFF !important;
-                border: none !important;
-            }
-            [data-testid="baseButton-secondary"] {
-                background: var(--surface) !important;
-                color: var(--accent) !important;
-                border: 1px solid #93C5FD !important;
-            }
-
-            [data-testid="stTabs"] [data-baseweb="tab-list"] {
-                border-bottom: 1px solid var(--border) !important;
-            }
-            [data-testid="stTabs"] [data-baseweb="tab"] {
-                color: var(--muted) !important;
-                background: transparent !important;
-            }
-            [data-testid="stTabs"] [aria-selected="true"] {
-                color: var(--accent) !important;
-                border-bottom: 2px solid var(--accent) !important;
-                background: transparent !important;
-            }
-
-            [data-testid="stTextInput"] input,
-            [data-testid="stTextArea"] textarea,
-            [data-testid="stNumberInput"] input,
-            [data-testid="stSelectbox"] > div > div {
-                background: var(--surface) !important;
-                color: var(--text) !important;
-                border: 1px solid var(--border) !important;
-            }
-            [data-testid="stTextInput"] input::placeholder,
-            [data-testid="stTextArea"] textarea::placeholder {
-                color: #94A3B8 !important;
-            }
-            [data-testid="stTextInput"] input:focus,
-            [data-testid="stTextArea"] textarea:focus,
-            [data-testid="stNumberInput"] input:focus {
-                border-color: var(--accent) !important;
-                box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.18) !important;
-            }
-
-            [data-testid="stFileUploader"] section {
-                background: var(--surface-2) !important;
-                border: 2px dashed #B6C2CF !important;
-            }
-            [data-testid="stExpander"] {
-                background: var(--surface) !important;
-                border: 1px solid var(--border) !important;
-            }
-            [data-testid="stAlert"] {
-                background: #F8FAFC !important;
-                border: 1px solid var(--border) !important;
-            }
-            /* Light-theme rescue for hard-coded dark inline cards/text */
-            div[style*="background:#0D1117"],
-            div[style*="background:rgba(13,17,23"],
-            div[style*="background:rgba(22,27,34"] {
-                background: #FFFFFF !important;
-                border-color: #D9E2EC !important;
-            }
-            div[style*="color:#E6EDF3"],
-            div[style*="color:#C9D1D9"],
-            div[style*="color:#8B949E"],
-            div[style*="color:#6E7681"],
-            span[style*="color:#E6EDF3"],
-            span[style*="color:#C9D1D9"],
-            span[style*="color:#8B949E"],
-            span[style*="color:#6E7681"],
-            p[style*="color:#E6EDF3"],
-            p[style*="color:#C9D1D9"],
-            p[style*="color:#8B949E"],
-            p[style*="color:#6E7681"] {
-                color: #1E293B !important;
-            }
-
-            code {
-                background: #EEF2FF !important;
-                color: #1D4ED8 !important;
-                border: 1px solid #C7D2FE !important;
-            }
-            hr { border-color: var(--border) !important; }
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
-        return
+    # Force dark theme - no light mode option available
     st.markdown("""
+    <style>
     <style>
     /* ── Google Fonts – Inter ─────────────────── */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -481,6 +335,13 @@ def render_sidebar():
     render_login_gate()
     init_collaboration_state()
     user = get_current_user()
+
+    # Persist dark mode across page navigation
+    st.session_state["theme_mode"] = "Dark"
+    try:
+        st.query_params["theme_mode"] = "Dark"
+    except Exception:
+        pass
     try:
         from utils.backend_db import touch_user_session
 
@@ -557,7 +418,6 @@ def render_sidebar():
         '<div style="border-top:1px solid #161B22;margin-top:8px;padding-top:6px;"></div>'
     )
     st.sidebar.markdown(sidebar_html, unsafe_allow_html=True)
-    st.session_state["theme_mode"] = "Dark"  # Force dark mode for better data visualization
     st.sidebar.progress(progress_pct / 100.0, text=f"Progress {progress_pct}%")
     with st.sidebar.expander("Debug Panel", expanded=False):
         loaded_size_mb = st.session_state.get("loaded_file_size_mb")
