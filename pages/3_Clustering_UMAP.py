@@ -5,6 +5,7 @@ import pandas as pd
 from core.clustering import run_clustering_step
 from utils.visualization import umap_plot
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance, PALETTE, PLOTLY_TEMPLATE
+from utils.interpretation import show_explanation_button, interpret_clusters
 from config import N_TOP_GENES, N_PCS, N_NEIGHBORS, LEIDEN_RESOLUTION
 
 st.set_page_config(page_title="Clustering & UMAP", layout="wide")
@@ -79,6 +80,14 @@ if st.button("▶ Run Full Clustering Pipeline", type="primary"):
     except Exception:
         prog.progress(1.0, text="Failed")
         st.error("Something went wrong during processing. Please try a smaller dataset.")
+
+    # Show cluster interpretation
+    st.divider()
+    st.markdown("### 💡 Cluster Interpretation")
+    with st.expander("📖 What do these clusters mean?", expanded=True):
+        cluster_interpretations = interpret_clusters(adata, "leiden")
+        for cluster_id, interpretation in cluster_interpretations.items():
+            st.markdown(f"- {interpretation}")
 
 # ── UMAP visualization ───────────────────────────────────────────────────────
 if "X_umap" not in (adata.obsm if adata is not None else {}):
@@ -158,5 +167,10 @@ if "pca" in adata.uns and "variance_ratio" in adata.uns["pca"]:
                         line=dict(color="#FF6B6B", width=2))
     fig_pca.update_layout(paper_bgcolor="#0E1117", plot_bgcolor="#161B22")
     st.plotly_chart(fig_pca, use_container_width=True)
+
+# ── Explanations ───────────────────────────────────────────────────────────────
+st.divider()
+show_explanation_button("umap", adata, button_key="umap_explain")
+show_explanation_button("cluster", adata, button_key="cluster_explain", cluster_col="leiden")
 
 render_nav_buttons(4)

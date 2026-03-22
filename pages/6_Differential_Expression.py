@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 
 from core.pipeline import get_ranked_genes_df, run_differential_expression
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance, PALETTE, PLOTLY_TEMPLATE
+from utils.interpretation import show_explanation_button, interpret_de_result
 
 st.set_page_config(page_title="Differential Expression", layout="wide")
 inject_global_css()
@@ -180,6 +181,21 @@ if "Log2 Fold Change" in display_df.columns and "Adj. P-value (BH)" in display_d
     fig_v.update_layout(paper_bgcolor="#0E1117", plot_bgcolor="#161B22", height=500)
     fig_v.update_traces(marker=dict(size=4, opacity=0.7))
     st.plotly_chart(fig_v, use_container_width=True)
+
+# ── Interpretation ─────────────────────────────────────────────────────────────
+st.divider()
+st.markdown("### 💡 Interpreting Differential Expression Results")
+with st.expander("📖 What do these results mean?", expanded=False):
+    de_interpretation = interpret_de_result(
+        display_df,
+        comparison=f"{groupby_col.title()} {selected_group}",
+        top_n=10
+    )
+    st.markdown(de_interpretation)
+
+show_explanation_button("de", data=None, button_key="de_explain")
+
+st.divider()
 
 # ── Store for pipeline & download ────────────────────────────────────────────
 st.session_state["de_genes"] = display_df["Gene Symbol"].tolist()

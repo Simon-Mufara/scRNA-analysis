@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 from core.qc import compute_qc_metrics, run_qc_filter, get_qc_stats
 from utils.visualization import violin_qc
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance, PLOTLY_TEMPLATE
+from utils.interpretation import show_explanation_button, interpret_qc_metrics, show_data_quality_warnings
 from config import QC_MIN_GENES, QC_MAX_GENES, QC_MIN_CELLS, QC_MAX_MITO_PCT
 
 st.set_page_config(page_title="Quality Control", layout="wide")
@@ -52,6 +53,15 @@ remove_doublets = st.checkbox(
 
 # ── Pre-filter metrics ───────────────────────────────────────────────────────
 st.markdown("### 📊 Current QC Distributions")
+
+# Show data quality warnings and interpretations
+show_data_quality_warnings(adata)
+
+# Interpretation of current QC metrics
+with st.expander("📖 Interpret Your QC Metrics", expanded=False):
+    qc_interpretations = interpret_qc_metrics(adata)
+    for metric, interpretation in qc_interpretations.items():
+        st.markdown(interpretation)
 
 fig_row1_c1, fig_row1_c2, fig_row1_c3 = st.columns(3)
 
@@ -142,5 +152,30 @@ if st.button("▶ Run Quality Control Filter", type="primary"):
     stats_df["Value"] = stats_df["Value"].apply(lambda x: f"{x:,.1f}")
     import pandas as pd
     st.dataframe(stats_df, use_container_width=True)
+
+    # Interpret the QC results
+    st.divider()
+    st.markdown("### 🔍 What Does This Mean?")
+    with st.expander("📖 Interpretation of Your Results", expanded=True):
+        st.markdown(f"""
+        **Quality Control Summary:**
+
+        You've successfully filtered your dataset:
+        - **Removed {removed:,} cells** ({removed/total*100:.1f}% of original)
+        - **Retained {summary.get('cells_after', 0):,} cells** of high quality
+        - **Kept {adata_qc.n_vars:,} genes** expressed in at least {min_cells} cells
+
+        **What this means:**
+        - Lower cell counts suggest stricter QC thresholds
+        - Keeping ~60-90% of cells is typical and healthy
+        - You've eliminated low-quality cells that would confound downstream analysis
+
+        **Next steps:**
+        1. Review the QC metrics above
+        2. If too many cells removed → relax thresholds and re-run
+        3. If satisfied → Proceed to Step 3 (Clustering) to identify cell populations
+        """)
+
+    show_explanation_button("qc", adata_qc, button_key="qc_post")
 
 render_nav_buttons(3)

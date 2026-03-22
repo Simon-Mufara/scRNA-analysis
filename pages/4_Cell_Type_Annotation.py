@@ -11,6 +11,7 @@ from utils.annotation import (
 )
 from utils.visualization import umap_plot
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance, PALETTE
+from utils.interpretation import show_explanation_button, interpret_cell_types
 from config import CELLTYPIST_MODEL
 from core.pipeline import get_ranked_genes_df
 
@@ -478,5 +479,23 @@ Use alternatives for cross-validation when results are clinically sensitive.
     csv = counts.to_csv(index=False).encode()
     st.download_button("⬇️ Download Cell Type Summary (CSV)", data=csv,
                        file_name="cell_type_summary.csv", mime="text/csv")
+
+# ── Explanations ───────────────────────────────────────────────────────────────
+st.divider()
+st.markdown("### 💡 Understanding Cell Type Annotations")
+with st.expander("📖 What do these results mean?", expanded=False):
+    cell_type_interpretations = interpret_cell_types(adata, "cell_type")
+    for cell_type, interpretation in cell_type_interpretations.items():
+        st.markdown(f"- {interpretation}")
+
+    st.markdown("\n**Validation Tips:**")
+    st.markdown("""
+    - ✅ Compare against known biology (prior knowledge)
+    - ✅ Check marker gene expression in annotation results
+    - ✅ Look for biologically consistent cluster composition
+    - ⚠️ Ambiguous cells may represent transitional states
+    """)
+
+show_explanation_button("celltype", adata, button_key="celltype_explain")
 
 render_nav_buttons(5)

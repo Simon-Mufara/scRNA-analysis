@@ -6,6 +6,7 @@ import plotly.express as px
 from core.pipeline import build_prerank_input
 from utils.pathway import get_top_pathways, run_gsea_prerank
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance, PLOTLY_TEMPLATE
+from utils.interpretation import show_explanation_button, interpret_pathway_results
 from config import PATHWAY_GENE_SETS
 
 st.set_page_config(page_title="Pathway Analysis", layout="wide")
@@ -15,9 +16,9 @@ adata = st.session_state.get("adata")
 
 page_header(
     "🧪", "Pathway Enrichment Analysis",
-    "Identify enriched biological pathways using Enrichr (KEGG, Reactome, GO, Hallmark)
-show_guidance("pathways")"
+    "Identify enriched biological pathways using Enrichr (KEGG, Reactome, GO, Hallmark)"
 )
+show_guidance("pathways")
 
 
 def show_pathway_results(df: pd.DataFrame):
@@ -74,6 +75,16 @@ def show_pathway_results(df: pd.DataFrame):
             st.plotly_chart(fig2, use_container_width=True)
 
     csv = df.to_csv(index=False).encode()
+
+    # ── Interpretation ──────────────────────────────────────────────────────────
+    st.divider()
+    st.markdown("### 💡 Interpreting Pathway Results")
+    with st.expander("📖 What do these pathways mean?", expanded=False):
+        pathway_interpretation = interpret_pathway_results(df, cell_type="")
+        st.markdown(pathway_interpretation)
+
+    show_explanation_button("pathway", data=None, button_key="pathway_explain")
+    st.divider()
 
     # ── Export as xlsx for proper Excel display ──────────────────────────────
     import io as _io
