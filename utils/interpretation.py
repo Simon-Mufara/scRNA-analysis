@@ -9,6 +9,72 @@ import numpy as np
 from typing import Dict, List, Tuple, Optional
 
 
+# ── User Mode Helpers ──────────────────────────────────────────────────────────
+
+def is_expert_mode() -> bool:
+    """Check if user is in Expert mode."""
+    return st.session_state.get("user_mode", "beginner") == "expert"
+
+def is_beginner_mode() -> bool:
+    """Check if user is in Beginner mode."""
+    return st.session_state.get("user_mode", "beginner") == "beginner"
+
+def show_advanced_options(label: str = "⚙️ Advanced Parameters") -> bool:
+    """
+    Display advanced options in an expander (only for expert mode).
+    Returns True if options should be shown.
+
+    Usage:
+        if show_advanced_options():
+            with st.expander(label):
+                # Add advanced options here
+    """
+    if is_expert_mode():
+        return True
+    return False
+
+def create_beginner_parameter(label: str, widget_func, *args, **kwargs):
+    """
+    Wrapper for creating parameters that adapt based on user mode.
+    In Beginner mode: shows simple version with reduced options
+    In Expert mode: shows full version with all options
+
+    Example:
+        resolution = create_beginner_parameter(
+            "Resolution",
+            st.slider,
+            min_value=0.1,
+            max_value=2.0,
+            value=0.5,
+            beginner_max=1.5,
+            beginner_value=0.5
+        )
+    """
+    if is_beginner_mode():
+        # Modify kwargs for simpler beginner experience
+        if "max_value" in kwargs:
+            kwargs["max_value"] = kwargs.pop("beginner_max", kwargs["max_value"])
+        if "value" in kwargs:
+            original_value = kwargs["value"]
+            kwargs["value"] = kwargs.pop("beginner_value", original_value)
+        if "step" in kwargs and isinstance(kwargs.get("step"), float):
+            kwargs["step"] = max(kwargs["step"], 0.1)  # Fewer steps for beginner
+
+    return widget_func(*args, **kwargs)
+
+def show_mode_tip(tip_text: str) -> None:
+    """
+    Display a tip specific to the current user mode.
+
+    Example:
+        show_mode_tip("Tip: Use default parameters for best results!")
+    """
+    if is_beginner_mode():
+        st.info(f"💡 Beginner Tip: {tip_text}")
+    else:
+        st.caption(f"🔧 Expert Note: {tip_text}")
+
+
 # ── QC Metrics Interpretation ──────────────────────────────────────────────────
 
 def interpret_qc_metrics(adata) -> Dict[str, str]:

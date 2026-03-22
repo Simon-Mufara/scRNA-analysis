@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from core.qc import compute_qc_metrics, run_qc_filter, get_qc_stats
 from utils.visualization import violin_qc
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance, PLOTLY_TEMPLATE
-from utils.interpretation import show_explanation_button, interpret_qc_metrics, show_data_quality_warnings
+from utils.interpretation import show_explanation_button, interpret_qc_metrics, show_data_quality_warnings, is_beginner_mode, show_mode_tip
 from config import QC_MIN_GENES, QC_MAX_GENES, QC_MIN_CELLS, QC_MAX_MITO_PCT
 
 st.set_page_config(page_title="Quality Control", layout="wide")
@@ -40,16 +40,26 @@ if "pct_counts_mt" not in adata.obs.columns:
 
 # ── Parameters ───────────────────────────────────────────────────────────────
 st.markdown("### ⚙️ Filter Thresholds")
-c1, c2, c3, c4 = st.columns(4)
-min_genes = c1.number_input("Min genes / cell", value=QC_MIN_GENES, min_value=0, step=50)
-max_genes = c2.number_input("Max genes / cell", value=QC_MAX_GENES, min_value=100, step=100)
-min_cells = c3.number_input("Min cells / gene", value=QC_MIN_CELLS, min_value=1)
-max_mito  = c4.slider("Max % mitochondrial", 0.0, 50.0, QC_MAX_MITO_PCT, step=0.5)
-remove_doublets = st.checkbox(
-    "Run doublet detection (Scrublet)",
-    value=False,
-    help="Recommended for droplet data; requires the 'scrublet' package.",
-)
+
+if is_beginner_mode():
+    st.markdown("**Beginner Mode**: Using recommended preset thresholds (expert mode allows customization)")
+    min_genes = QC_MIN_GENES
+    max_genes = QC_MAX_GENES
+    min_cells = QC_MIN_CELLS
+    max_mito = QC_MAX_MITO_PCT
+    remove_doublets = False
+    show_mode_tip("These defaults work well for typical scRNA-seq datasets. Adjust in Expert mode if needed.")
+else:
+    c1, c2, c3, c4 = st.columns(4)
+    min_genes = c1.number_input("Min genes / cell", value=QC_MIN_GENES, min_value=0, step=50)
+    max_genes = c2.number_input("Max genes / cell", value=QC_MAX_GENES, min_value=100, step=100)
+    min_cells = c3.number_input("Min cells / gene", value=QC_MIN_CELLS, min_value=1)
+    max_mito  = c4.slider("Max % mitochondrial", 0.0, 50.0, QC_MAX_MITO_PCT, step=0.5)
+    remove_doublets = st.checkbox(
+        "Run doublet detection (Scrublet)",
+        value=False,
+        help="Recommended for droplet data; requires the 'scrublet' package.",
+    )
 
 # ── Pre-filter metrics ───────────────────────────────────────────────────────
 st.markdown("### 📊 Current QC Distributions")

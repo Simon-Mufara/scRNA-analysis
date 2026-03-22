@@ -571,6 +571,21 @@ def render_sidebar():
     guided_mode = st.sidebar.toggle("🎓 Guided Mode", value=st.session_state.get("guided_mode", False))
     st.session_state["guided_mode"] = guided_mode
 
+    # User mode selector (Beginner / Expert)
+    user_mode = st.sidebar.selectbox(
+        "User Mode",
+        ["👶 Beginner", "🧑‍💼 Expert"],
+        index=0 if st.session_state.get("user_mode", "👶 Beginner") == "👶 Beginner" else 1,
+        help="Beginner: Simplified parameters. Expert: Full control over all settings."
+    )
+    user_mode_value = "beginner" if user_mode == "👶 Beginner" else "expert"
+    if user_mode_value != st.session_state.get("user_mode"):
+        st.session_state["user_mode"] = user_mode_value
+        try:
+            st.query_params["user_mode"] = user_mode_value
+        except Exception:
+            pass
+
     st.sidebar.progress(progress_pct / 100.0, text=f"Progress {progress_pct}%")
     with st.sidebar.expander("Debug Panel", expanded=False):
         loaded_size_mb = st.session_state.get("loaded_file_size_mb")

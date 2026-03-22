@@ -5,7 +5,7 @@ import pandas as pd
 from core.clustering import run_clustering_step
 from utils.visualization import umap_plot
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance, PALETTE, PLOTLY_TEMPLATE
-from utils.interpretation import show_explanation_button, interpret_clusters
+from utils.interpretation import show_explanation_button, interpret_clusters, is_beginner_mode, show_mode_tip
 from config import N_TOP_GENES, N_PCS, N_NEIGHBORS, LEIDEN_RESOLUTION
 
 st.set_page_config(page_title="Clustering & UMAP", layout="wide")
@@ -35,11 +35,21 @@ with st.expander("⚙️ Pipeline Parameters", expanded=True):
     c1, c2, c3, c4 = st.columns(4)
     n_top   = c1.number_input("Top variable genes", value=N_TOP_GENES, step=100,
                                help="Highly variable genes used for PCA")
-    n_pcs   = c2.number_input("# PCs", value=N_PCS, min_value=10, max_value=100,
-                               help="Principal components for neighbour graph")
-    n_nb    = c3.number_input("# Neighbours", value=N_NEIGHBORS, min_value=5, max_value=100)
-    res     = c4.slider("Leiden resolution", 0.1, 2.0, LEIDEN_RESOLUTION, step=0.1,
-                        help="Higher = more clusters")
+
+    # Expert mode: show advanced parameters
+    if not is_beginner_mode():
+        n_pcs   = c2.number_input("# PCs", value=N_PCS, min_value=10, max_value=100,
+                                   help="Principal components for neighbour graph")
+        n_nb    = c3.number_input("# Neighbours", value=N_NEIGHBORS, min_value=5, max_value=100)
+        res     = c4.slider("Leiden resolution", 0.1, 2.0, LEIDEN_RESOLUTION, step=0.1,
+                            help="Higher = more clusters")
+    else:
+        # Beginner mode: simplified parameters
+        st.markdown("**✅ Expert parameters hidden. Click '🧑‍💼 Expert' mode in sidebar for full control.**")
+        n_pcs = N_PCS
+        n_nb = N_NEIGHBORS
+        res = LEIDEN_RESOLUTION
+
     c5, c6 = st.columns(2)
     integration_method = c5.selectbox(
         "Batch integration",
@@ -52,6 +62,9 @@ with st.expander("⚙️ Pipeline Parameters", expanded=True):
         batch_candidates,
         help="Metadata column identifying batch/study/source.",
     )
+
+    if is_beginner_mode():
+        show_mode_tip("Default parameters work well for most datasets. Switch to Expert mode for fine-tuning.")
 
 if st.button("▶ Run Full Clustering Pipeline", type="primary"):
     steps = ["Normalizing", "Log1p transform", "HVG selection", "PCA",
