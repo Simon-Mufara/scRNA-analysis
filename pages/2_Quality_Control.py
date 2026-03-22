@@ -137,8 +137,11 @@ if st.button("▶ Run Quality Control Filter", type="primary"):
             )
             st.session_state["adata"] = adata_qc
             st.session_state.setdefault("pipeline_status", {})["QC"] = "done"
-    except Exception:
-        st.error("Something went wrong during processing. Please try a smaller dataset.")
+    except Exception as e:
+        st.error(f"❌ QC filtering failed: {str(e)}")
+        with st.expander("📋 Full error traceback (for debugging)"):
+            import traceback
+            st.code(traceback.format_exc(), language="python")
         st.stop()
 
     summary = adata_qc.uns.get("qc_summary", {})
