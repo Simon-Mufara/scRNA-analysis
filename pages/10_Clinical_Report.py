@@ -8,7 +8,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance
-from utils.export import create_analysis_report_pdf, export_to_csv, PALETTE
+from utils.export import create_analysis_report_pdf, export_to_csv
 from utils.auth import get_current_user
 from utils.collaboration import capture_pipeline_training_record, submit_clinical_report
 
