@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Optional
 from anndata import AnnData
 import pandas as pd
 import scanpy as sc
@@ -19,7 +20,7 @@ def _write_checkpoint(adata: AnnData, *, artifact_id: str, step: str) -> None:
     adata.write_h5ad(out_dir / f"{artifact_id}_{step}.h5ad")
 
 
-def run_pipeline(file_path: str, job_id: str | None = None) -> AnnData:
+def run_pipeline(file_path: str, job_id: Optional[str] = None) -> AnnData:
     artifact_id = str(job_id or Path(file_path).stem)
     suffix = Path(file_path).suffix.lower()
     if suffix == ".csv":
