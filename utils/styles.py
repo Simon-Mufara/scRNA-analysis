@@ -727,7 +727,7 @@ def badge(text: str, color: str = "#00D4FF"):
 # Ordered page manifest — (file path relative to app root, label, icon)
 PAGES = [
     ("app",                              "Home",                  ":material/home:"),
-    ("pages/10_Preprocessing_Workbench", "Preprocessing Workbench", ":material/build:"),
+    ("pages/11_Preprocessing_Workbench", "Preprocessing Workbench", ":material/build:"),
     ("pages/1_Upload_Data",              "Upload Data",           ":material/upload_file:"),
     ("pages/2_Quality_Control",          "Quality Control",       ":material/biotech:"),
     ("pages/3_Clustering_UMAP",          "Clustering & UMAP",     ":material/monitoring:"),
@@ -735,8 +735,9 @@ PAGES = [
     ("pages/5_Gene_Explorer",            "Gene Explorer",         ":material/search:"),
     ("pages/6_Differential_Expression",  "Diff. Expression",      ":material/query_stats:"),
     ("pages/7_Pathway_Analysis",         "Pathway Analysis",      ":material/route:"),
-    ("pages/8_Clinical_Report",          "Clinical Report",       ":material/description:"),
-    ("pages/9_Team_Dashboard",           "Team Dashboard",        ":material/groups:"),
+    ("pages/8_Summary_Report",           "Summary Report",        ":material/description:"),
+    ("pages/9_Clinical_Report",          "Clinical Report",       ":material/print:"),
+    ("pages/10_Team_Dashboard",          "Team Dashboard",        ":material/groups:"),
 ]
 
 
