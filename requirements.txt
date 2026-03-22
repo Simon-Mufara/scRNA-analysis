@@ -16,3 +16,7 @@ scipy>=1.9.0
 scikit-learn>=1.2.0
 celltypist>=1.0.0
 bbknn>=1.5.1
+gseapy>=1.0.0
+openpyxl>=3.0.0
+python-dotenv>=0.21.0
+h5py>=3.7.0
