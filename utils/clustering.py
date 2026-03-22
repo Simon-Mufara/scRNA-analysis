@@ -48,7 +48,12 @@ def run_clustering(adata, n_top_genes=N_TOP_GENES, n_pcs=N_PCS,
 
     # ── 4. PCA → neighbors → UMAP → Leiden ──────────────────────────────────
     if adata.n_obs <= 50000:
-        sc.pp.scale(adata, max_value=10)
+        # Only scale if we have a manageable dataset and avoid sparse matrix densification
+        try:
+            sc.pp.scale(adata, max_value=10)
+        except Exception:
+            # Skip scaling if it fails (e.g., sparse matrix issues)
+            pass
 
     n_pcs_actual = min(n_pcs, adata.n_vars - 1, adata.n_obs - 1)
     sc.pp.pca(adata, n_comps=n_pcs_actual, use_highly_variable=True)

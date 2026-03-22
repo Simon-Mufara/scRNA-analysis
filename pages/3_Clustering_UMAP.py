@@ -70,11 +70,17 @@ if st.button("▶ Run Full Clustering Pipeline", type="primary"):
     steps = ["Normalizing", "Log1p transform", "HVG selection", "PCA",
              "Building neighbour graph", "UMAP", "Leiden clustering"]
     prog = st.progress(0, text="Starting pipeline...")
-    for i, step in enumerate(steps):
-        prog.progress((i + 1) / len(steps), text=f"{step}...")
+
+    clustering_success = False
+    error_details = None
 
     try:
+        st.info(f"📊 Processing: {adata.n_obs:,} cells × {adata.n_vars:,} genes")
+
         with st.spinner("Running clustering pipeline..."):
+            for i, step in enumerate(steps):
+                prog.progress((i + 1) / len(steps), text=f"{step}...")
+
             adata = run_clustering_step(
                 adata,
                 n_top_genes=n_top,
@@ -84,25 +90,33 @@ if st.button("▶ Run Full Clustering Pipeline", type="primary"):
                 integration_method=integration_method,
                 batch_key=batch_key,
             )
-            st.session_state["adata"] = adata
-            st.session_state.setdefault("pipeline_status", {})["Clustering"] = "done"
+
+        st.session_state["adata"] = adata
+        st.session_state.setdefault("pipeline_status", {})["Clustering"] = "done"
+        clustering_success = True
 
         prog.progress(1.0, text="Done!")
         n_clusters = adata.obs["leiden"].nunique()
         st.success(f"✅ Pipeline complete — **{n_clusters} clusters** identified")
+
     except Exception as e:
         prog.progress(1.0, text="Failed")
-        st.error(f"❌ ERROR: {str(e)}")
-        import traceback
-        st.code(traceback.format_exc(), language="python")
+        error_details = str(e)
+        st.error(f"❌ Clustering failed: {error_details}")
 
-    # Show cluster interpretation
-    st.divider()
-    st.markdown("### 💡 Cluster Interpretation")
-    with st.expander("📖 What do these clusters mean?", expanded=True):
-        cluster_interpretations = interpret_clusters(adata, "leiden")
-        for cluster_id, interpretation in cluster_interpretations.items():
-            st.markdown(f"- {interpretation}")
+        # Show detailed error information
+        with st.expander("📋 Full error traceback (for debugging)"):
+            import traceback
+            st.code(traceback.format_exc(), language="python")
+
+    # Show cluster interpretation only if clustering succeeded
+    if clustering_success and "leiden" in adata.obs.columns:
+        st.divider()
+        st.markdown("### 💡 Cluster Interpretation")
+        with st.expander("📖 What do these clusters mean?", expanded=True):
+            cluster_interpretations = interpret_clusters(adata, "leiden")
+            for cluster_id, interpretation in cluster_interpretations.items():
+                st.markdown(f"- {interpretation}")
 
 # ── UMAP visualization ───────────────────────────────────────────────────────
 if "X_umap" not in (adata.obsm if adata is not None else {}):
