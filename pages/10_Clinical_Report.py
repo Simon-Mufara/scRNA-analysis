@@ -321,32 +321,28 @@ def build_pdf(report_date_str: str, analyst_name: str, project_name: str) -> byt
 
     FONT_R = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
     FONT_B = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-    font_family = "Helvetica"
+    font_family = "helvetica"  # Standard FPDF font - portable across all environments
 
     class Report(FPDF):
         def header(self):
             self.set_fill_color(13, 17, 23)
             self.rect(0, 0, 210, 28, "F")
-            self.set_font("DV", "B", 11)
+            self.set_font("helvetica", "B", 11)
             self.set_text_color(0, 212, 255)
             self.set_xy(10, 7)
             self.cell(0, 7, "SingleCell Clinical & Research Explorer (SC-CRE) v1.0")
-            self.set_font("DV", "", 8)
+            self.set_font("helvetica", "", 8)
             self.set_text_color(139, 148, 158)
             self.set_xy(10, 17)
             self.cell(0, 5, f"Generated: {report_date_str}  |  Analyst: {analyst_name or 'N/A'}  |  Project: {project_name or 'N/A'}")
 
         def footer(self):
             self.set_y(-12)
-            self.set_font("DV", "", 7)
+            self.set_font("helvetica", "", 7)
             self.set_text_color(100, 110, 120)
             self.cell(0, 5, f"FOR RESEARCH USE ONLY | Page {self.page_no()} | SC-CRE v1.0.0", align="C")
 
     pdf = Report(orientation="P", unit="mm", format="A4")
-    if os.path.exists(FONT_R) and os.path.exists(FONT_B):
-        pdf.add_font("DV", "", FONT_R)
-        pdf.add_font("DV", "B", FONT_B)
-        font_family = "DV"
     pdf.set_auto_page_break(auto=True, margin=18)
     pdf.add_page()
     pdf.set_margins(14, 32, 14)
