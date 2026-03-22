@@ -152,6 +152,102 @@ for i, (step, icon) in enumerate(steps):
 pipeline_html += "</div>"
 st.markdown(pipeline_html, unsafe_allow_html=True)
 
+# ── Full Workflow Pipeline Diagram ─────────────────────────────────────────────
+with st.expander("📊 Full Workflow Pipeline", expanded=False):
+    st.markdown("""
+    <div style="background:rgba(22,27,34,0.4);border:1px solid #21262D;border-radius:14px;padding:20px;">
+        <div style="font-size:0.85rem;color:#8B949E;line-height:1.8;">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+                <span style="background:#00D4FF;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#0E1117;font-weight:700;font-size:0.7rem;">1</span>
+                <div>
+                    <div style="color:#E6EDF3;font-weight:600;font-size:0.9rem;">📁 Upload Data</div>
+                    <div style="color:#6E7681;font-size:0.75rem;margin-top:2px;">Load .h5ad file or matrix data</div>
+                </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+                <span style="background:#A855F7;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#0E1117;font-weight:700;font-size:0.7rem;">2</span>
+                <div>
+                    <div style="color:#E6EDF3;font-weight:600;font-size:0.9rem;">🔬 Quality Control</div>
+                    <div style="color:#6E7681;font-size:0.75rem;margin-top:2px;">Filter low-quality cells and genes</div>
+                </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+                <span style="background:#51CF66;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#0E1117;font-weight:700;font-size:0.7rem;">3</span>
+                <div>
+                    <div style="color:#E6EDF3;font-weight:600;font-size:0.9rem;">📊 Clustering & UMAP</div>
+                    <div style="color:#6E7681;font-size:0.75rem;margin-top:2px;">Normalize, reduce dimensions, identify clusters</div>
+                </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+                <span style="background:#FF6B6B;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#0E1117;font-weight:700;font-size:0.7rem;">4</span>
+                <div>
+                    <div style="color:#E6EDF3;font-weight:600;font-size:0.9rem;">🏷️ Cell Type Annotation</div>
+                    <div style="color:#6E7681;font-size:0.75rem;margin-top:2px;">Assign cell types using markers or AI</div>
+                </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+                <span style="background:#FFD43B;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#0E1117;font-weight:700;font-size:0.7rem;">5</span>
+                <div>
+                    <div style="color:#E6EDF3;font-weight:600;font-size:0.9rem;">🔎 Gene Explorer</div>
+                    <div style="color:#6E7681;font-size:0.75rem;margin-top:2px;">Visualize expression of specific genes</div>
+                </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+                <span style="background:#FF922B;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#0E1117;font-weight:700;font-size:0.7rem;">6</span>
+                <div>
+                    <div style="color:#E6EDF3;font-weight:600;font-size:0.9rem;">📈 Differential Expression</div>
+                    <div style="color:#6E7681;font-size:0.75rem;margin-top:2px;">Find genes distinguishing cell types</div>
+                </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+                <span style="background:#74C0FC;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#0E1117;font-weight:700;font-size:0.7rem;">7</span>
+                <div>
+                    <div style="color:#E6EDF3;font-weight:600;font-size:0.9rem;">🧪 Pathway Analysis</div>
+                    <div style="color:#6E7681;font-size:0.75rem;margin-top:2px;">Identify enriched biological pathways</div>
+                </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+                <span style="background:#63E6BE;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#0E1117;font-weight:700;font-size:0.7rem;">8</span>
+                <div>
+                    <div style="color:#E6EDF3;font-weight:600;font-size:0.9rem;">📋 Summary Report</div>
+                    <div style="color:#6E7681;font-size:0.75rem;margin-top:2px;">Aggregate all results and insights</div>
+                </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+                <span style="background:#9775FA;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#0E1117;font-weight:700;font-size:0.7rem;">9</span>
+                <div>
+                    <div style="color:#E6EDF3;font-weight:600;font-size:0.9rem;">📄 Clinical Report</div>
+                    <div style="color:#6E7681;font-size:0.75rem;margin-top:2px;">Export publication-ready PDF report</div>
+                </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+                <span style="background:#20C997;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#0E1117;font-weight:700;font-size:0.7rem;">10</span>
+                <div>
+                    <div style="color:#E6EDF3;font-weight:600;font-size:0.9rem;">👥 Team Dashboard</div>
+                    <div style="color:#6E7681;font-size:0.75rem;margin-top:2px;">Share results and collaborate with team</div>
+                </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:12px;">
+                <span style="background:#868E96;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#0E1117;font-weight:700;font-size:0.7rem;">11</span>
+                <div>
+                    <div style="color:#E6EDF3;font-weight:600;font-size:0.9rem;">⚙️ Preprocessing Workbench</div>
+                    <div style="color:#6E7681;font-size:0.75rem;margin-top:2px;">Data import and preprocessing utilities</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
 # ── Dataset status ────────────────────────────────────────────────────────────
 adata = st.session_state.get("adata")
 st.markdown("<div style='margin-top:4px;'></div>", unsafe_allow_html=True)
