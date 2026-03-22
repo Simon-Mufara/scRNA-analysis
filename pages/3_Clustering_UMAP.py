@@ -90,9 +90,11 @@ if st.button("▶ Run Full Clustering Pipeline", type="primary"):
         prog.progress(1.0, text="Done!")
         n_clusters = adata.obs["leiden"].nunique()
         st.success(f"✅ Pipeline complete — **{n_clusters} clusters** identified")
-    except Exception:
+    except Exception as e:
         prog.progress(1.0, text="Failed")
-        st.error("Something went wrong during processing. Please try a smaller dataset.")
+        st.error(f"❌ ERROR: {str(e)}")
+        import traceback
+        st.code(traceback.format_exc(), language="python")
 
     # Show cluster interpretation
     st.divider()
