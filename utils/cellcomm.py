@@ -393,6 +393,245 @@ def generate_nichenet_explanation(sender_id, receiver_id, pair_key: str,
     return explanation
 
 
+def prioritize_ligands(adata, sender_id: str, cluster_col: str = "leiden") -> List[Tuple[str, float]]:
+    """
+    Prioritize ligands in sender cluster by expression level and variance across clusters.
+
+    NicheNet logic: Prioritize genes that are highly expressed and vary across clusters.
+
+    Returns: List of (ligand, priority_score) tuples sorted by priority (high to low)
+    """
+    if cluster_col not in adata.obs.columns:
+        return []
+
+    sender_data = adata[adata.obs[cluster_col] == sender_id]
+    if len(sender_data) == 0:
+        return []
+
+    # Collect all ligand genes
+    ligand_genes = set()
+    for pair_info in LIGAND_RECEPTOR_NETWORK.values():
+        ligand_genes.add(pair_info["ligand"])
+
+    priorities = []
+
+    for ligand in ligand_genes:
+        if ligand not in adata.var_names:
+            continue
+
+        # Get sender expression
+        sender_expr = sender_data[:, ligand].X
+        if hasattr(sender_expr, 'toarray'):
+            sender_expr = sender_expr.toarray().flatten()
+        else:
+            sender_expr = np.asarray(sender_expr).flatten()
+
+        sender_mean = np.mean(sender_expr)
+        sender_pct = 100 * np.sum(sender_expr > 0) / len(sender_expr)
+
+        # Get variance across all clusters
+        cluster_means = []
+        for cid in adata.obs[cluster_col].unique():
+            cluster_data = adata[adata.obs[cluster_col] == cid]
+            expr_vec = cluster_data[:, ligand].X
+            if hasattr(expr_vec, 'toarray'):
+                expr_vec = expr_vec.toarray().flatten()
+            else:
+                expr_vec = np.asarray(expr_vec).flatten()
+            cluster_means.append(np.mean(expr_vec))
+
+        # Variance indicates specificity (high variance = cluster-specific)
+        variance = np.var(cluster_means)
+
+        # Priority score: (mean expression * pct expressed) * (1 + variance)
+        # This prioritizes genes that are:
+        # 1. Highly expressed in sender
+        # 2. Widely expressed across cells
+        # 3. Vary across clusters (specific to this cluster)
+        priority_score = (sender_mean * (sender_pct / 100)) * (1 + variance)
+
+        if sender_mean > 0.1 and sender_pct > 10:
+            priorities.append((ligand, priority_score))
+
+    # Sort by priority score (descending)
+    priorities.sort(key=lambda x: x[1], reverse=True)
+    return priorities
+
+
+def calculate_interaction_confidence(adata, sender_id: str, receiver_id: str,
+                                    pair_key: str) -> Tuple[str, dict]:
+    """
+    Calculate confidence level (Low/Medium/High) for an interaction.
+
+    Confidence Logic:
+    - High: Both ligand and receptor highly expressed, high variance across clusters
+    - Medium: One is high expressed or moderate variance
+    - Low: Heuristic only, low expression
+
+    Returns: (confidence_level, metrics_dict)
+    """
+    if "leiden" not in adata.obs.columns or pair_key not in LIGAND_RECEPTOR_NETWORK:
+        return "Low", {}
+
+    pair_info = LIGAND_RECEPTOR_NETWORK[pair_key]
+    ligand = pair_info["ligand"]
+    receptor = pair_info["receptor"]
+
+    # Get sender ligand expression
+    sender_data = adata[adata.obs["leiden"] == sender_id]
+    if ligand in adata.var_names and len(sender_data) > 0:
+        ligand_expr = sender_data[:, ligand].X
+        if hasattr(ligand_expr, 'toarray'):
+            ligand_expr = ligand_expr.toarray().flatten()
+        else:
+            ligand_expr = np.asarray(ligand_expr).flatten()
+        ligand_mean = np.mean(ligand_expr)
+        ligand_pct = 100 * np.sum(ligand_expr > 0) / len(ligand_expr)
+    else:
+        ligand_mean = 0
+        ligand_pct = 0
+
+    # Get receiver receptor expression
+    receiver_data = adata[adata.obs["leiden"] == receiver_id]
+    if receptor in adata.var_names and len(receiver_data) > 0:
+        receptor_expr = receiver_data[:, receptor].X
+        if hasattr(receptor_expr, 'toarray'):
+            receptor_expr = receptor_expr.toarray().flatten()
+        else:
+            receptor_expr = np.asarray(receptor_expr).flatten()
+        receptor_mean = np.mean(receptor_expr)
+        receptor_pct = 100 * np.sum(receptor_expr > 0) / len(receiver_data)
+    else:
+        receptor_mean = 0
+        receptor_pct = 0
+
+    # Determine confidence level
+    metrics = {
+        "ligand_mean": ligand_mean,
+        "ligand_pct": ligand_pct,
+        "receptor_mean": receptor_mean,
+        "receptor_pct": receptor_pct,
+    }
+
+    # Scoring logic
+    ligand_score = ligand_mean * (ligand_pct / 100)  # 0-1 scale
+    receptor_score = receptor_mean * (receptor_pct / 100)  # 0-1 scale
+    combined_score = (ligand_score + receptor_score) / 2
+
+    if combined_score > 0.5 and ligand_pct > 30 and receptor_pct > 30:
+        confidence = "High"
+    elif combined_score > 0.1 or ligand_pct > 15 or receptor_pct > 15:
+        confidence = "Medium"
+    else:
+        confidence = "Low"
+
+    return confidence, metrics
+
+
+def generate_biological_story(adata, cluster_col: str = "leiden") -> str:
+    """
+    Generate a comprehensive biological story combining all communication patterns.
+
+    NicheNet logic: Synthesize sender-receiver relationships into narrative explaining
+    how cell-cell communication influences gene expression and cellular behavior.
+
+    Output format: "Immune-like cells may be signaling to epithelial cells,
+    influencing their gene expression and functional state."
+    """
+    if cluster_col not in adata.obs.columns:
+        return "Analysis incomplete: Run clustering first."
+
+    senders = infer_sender_clusters(adata, cluster_col)
+    receivers = infer_receiver_clusters(adata, cluster_col)
+
+    if not senders or not receivers:
+        return "Insufficient communication patterns detected. Try different clustering resolution."
+
+    # Identify dominant cell types (largest clusters)
+    sender_roles = {}
+    for cid, info in senders.items():
+        # Infer cell type from expressed ligands
+        ligands = list(info['ligands'].keys())
+        if any(l in ["TNF", "IL6", "IL1B"] for l in ligands):
+            sender_roles[cid] = "Immune-like"
+        elif any(l in ["PDGFA", "FGF1"] for l in ligands):
+            sender_roles[cid] = "Stromal/Fibroblast-like"
+        elif any(l in ["VEGFA"] for l in ligands):
+            sender_roles[cid] = "Endothelial-like"
+        else:
+            sender_roles[cid] = "Signaling"
+
+    receiver_roles = {}
+    for cid, info in receivers.items():
+        # Infer cell type from expressed receptors
+        receptors = list(info['receptors'].keys())
+        if any(r in ["TNFR1", "IL2RA", "IFNGR1"] for r in receptors):
+            receiver_roles[cid] = "Immune-responsive"
+        elif any(r in ["FLT1", "FGFR1", "PDGFRA"] for r in receptors):
+            receiver_roles[cid] = "Growth-responsive"
+        elif any(r in ["CDH1"] for r in receptors):
+            receiver_roles[cid] = "Adhesion-responsive"
+        else:
+            receiver_roles[cid] = "Responsive"
+
+    # Build narrative
+    story_parts = []
+
+    # Key interaction patterns
+    interaction_count = 0
+    for sender_id, sender_info in senders.items():
+        for receiver_id, receiver_info in receivers.items():
+            interactions = infer_cell_communication(adata, sender_id, receiver_id)
+            interaction_count += len(interactions)
+
+    if interaction_count == 0:
+        return "No significant communication patterns detected in this dataset."
+
+    # Opening: Overview
+    n_signals = sum(len(info['ligands']) for info in senders.values())
+    story_parts.append(
+        f"This dataset exhibits complex cell-cell communication networks "
+        f"involving {len(senders)} sender cluster(s) producing {n_signals} distinct signaling molecules, "
+        f"and {len(receivers)} receiver cluster(s) expressing corresponding receptors."
+    )
+
+    # Middle: Key signaling axes
+    story_parts.append("\n\n**Key Signaling Axes:**")
+
+    for sender_id, sender_info in list(senders.items())[:2]:  # Top 2 senders
+        for receiver_id, receiver_info in list(receivers.items())[:1]:  # Top receiver
+            interactions = infer_cell_communication(adata, sender_id, receiver_id)
+            if not interactions.empty:
+                top_interaction = interactions.iloc[0]
+                pair_key = top_interaction["Pair"]
+                pair_info = LIGAND_RECEPTOR_NETWORK[pair_key]
+
+                sender_desc = sender_roles.get(sender_id, "Sender")
+                receiver_desc = receiver_roles.get(receiver_id, "Receiver")
+                context = pair_info.get("context", "cell-cell communication")
+
+                targets = list(pair_info.get("target_genes", {}).keys())[:2]
+                target_desc = ", ".join(targets) if targets else "target genes"
+
+                story_parts.append(
+                    f"\n- **{sender_desc} cells** (Cluster {sender_id}) signal to "
+                    f"**{receiver_desc} cells** (Cluster {receiver_id}) through **{pair_key}**, "
+                    f"affecting expression of {target_desc} [{context}]"
+                )
+
+    # Conclusion: Functional implications
+    story_parts.append(
+        "\n\n**Functional Implications:**\n"
+        f"These communication networks enable coordinated cellular responses where "
+        f"{sender_roles.get(list(senders.keys())[0], 'sender cells')} influence "
+        f"{receiver_roles.get(list(receivers.keys())[0], 'receiver cells')} behavior "
+        f"through ligand-receptor signaling cascades. This pattern suggests "
+        f"{'immune activation or inflammatory response' if any('Immune' in r for r in receiver_roles.values()) else 'coordinated tissue function'}."
+    )
+
+    return "".join(story_parts)
+
+
 def show_nichenet_communication_network(adata) -> None:
     """
     Display comprehensive NicheNet-style cell-cell communication network.
@@ -449,14 +688,25 @@ def show_nichenet_communication_network(adata) -> None:
         if not interactions.empty:
             st.success(f"🔗 Found {len(interactions)} potential interaction(s)")
 
-            # Display each interaction with NicheNet explanation
+            # Display each interaction with NicheNet explanation and confidence
             for idx, row in interactions.iterrows():
                 pair_key = row["Pair"]
+                confidence, metrics = calculate_interaction_confidence(
+                    adata, sender_id, receiver_id, pair_key
+                )
 
                 with st.expander(
-                    f"🧬 {pair_key} | Score: {row['Interaction Score']}",
+                    f"🧬 {pair_key} | Score: {row['Interaction Score']} | Confidence: {confidence}",
                     expanded=(idx == 0)
                 ):
+                    # Confidence badge
+                    if confidence == "High":
+                        st.success(f"✅ **Confidence: {confidence}** — Strong ligand and receptor expression")
+                    elif confidence == "Medium":
+                        st.info(f"⚠️ **Confidence: {confidence}** — Mixed expression patterns")
+                    else:
+                        st.warning(f"🔍 **Confidence: {confidence}** — Heuristic-based prediction")
+
                     # NicheNet explanation
                     explanation = generate_nichenet_explanation(
                         sender_id, receiver_id, pair_key, adata

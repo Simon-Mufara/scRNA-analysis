@@ -10,7 +10,8 @@ from utils.styles import inject_global_css, page_header, render_sidebar, render_
 from utils.cellcomm import (
     infer_sender_clusters, infer_receiver_clusters,
     infer_cell_communication, show_nichenet_communication_network,
-    LIGAND_RECEPTOR_NETWORK
+    prioritize_ligands, calculate_interaction_confidence,
+    generate_biological_story, LIGAND_RECEPTOR_NETWORK
 )
 
 st.set_page_config(page_title="Cell Communication", layout="wide")
@@ -66,6 +67,23 @@ with st.expander("📚 What is cell-cell communication analysis?", expanded=Fals
     T Cell expression changes: ↑IL2, ↑IFNG, ↑TNF
     Amplifies immune response
     ```
+    """)
+
+# ── Biological Story ────────────────────────────────────────────────────────
+
+st.divider()
+st.markdown("## 📖 Communication Narrative")
+
+with st.expander("🧬 Generate Biological Story from Data", expanded=True):
+    story = generate_biological_story(adata, "leiden")
+    st.markdown(story)
+
+    st.info("""
+    **How this story was generated:**
+    - Analyzed sender clusters (expressing ligands) and receiver clusters (expressing receptors)
+    - Identified dominant signaling axes through top ligand-receptor-target relationships
+    - Inferred cell type roles based on expressed signaling molecules
+    - Synthesized findings into biological narrative
     """)
 
 # ── Display Communication Network ──────────────────────────────────────────────
@@ -140,6 +158,20 @@ if senders:
                 for ligand, expr in info['ligands'].items()
             ])
             st.dataframe(ligand_df, use_container_width=True)
+
+            # Show prioritized ligands
+            st.markdown("**Ligand Prioritization** (ranked by expression & cluster specificity):")
+            priorities = prioritize_ligands(adata, cluster_id, "leiden")
+
+            if priorities:
+                priority_df = pd.DataFrame([
+                    {"Rank": i+1, "Ligand": lig, "Priority Score": f"{score:.3f}"}
+                    for i, (lig, score) in enumerate(priorities[:5])  # Top 5
+                ])
+                st.dataframe(priority_df, use_container_width=True)
+                st.caption("Priority scores combine mean expression, percentage expressed, and cluster-specificity variance.")
+            else:
+                st.info("No prioritized ligands detected for this cluster.")
 
 if receivers:
     st.markdown("### Receiver Cell Clusters (Receptor Expressers)")
