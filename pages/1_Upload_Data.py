@@ -328,4 +328,4 @@ with tab_uns:
     else:
         st.info("No .uns metadata stored yet.")
 
-render_nav_buttons(1)
+render_nav_buttons(2)

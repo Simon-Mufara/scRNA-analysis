@@ -80,6 +80,58 @@
         ],
         "completion": 5
       }
+    ],
+    "analyst": [
+      {
+        "id": "8ec42b9c-5445-440f-83b0-a11375db5a17",
+        "timestamp": "2026-03-22 00:13 UTC",
+        "done_steps": [
+          "Upload"
+        ],
+        "completion": 1
+      },
+      {
+        "id": "7795d714-22dd-47b7-a291-a938622d8f19",
+        "timestamp": "2026-03-22 00:13 UTC",
+        "done_steps": [
+          "Upload",
+          "QC"
+        ],
+        "completion": 2
+      },
+      {
+        "id": "8acd8bad-93be-49e2-b6c3-06fcd6cb5724",
+        "timestamp": "2026-03-22 00:16 UTC",
+        "done_steps": [
+          "Upload",
+          "QC",
+          "Clustering"
+        ],
+        "completion": 3
+      },
+      {
+        "id": "b3e55cb2-4b17-4ce6-8202-2c9f6c0afe4c",
+        "timestamp": "2026-03-22 00:17 UTC",
+        "done_steps": [
+          "Upload",
+          "QC",
+          "Clustering",
+          "Annotation"
+        ],
+        "completion": 4
+      },
+      {
+        "id": "9393da21-53e0-4161-bf73-4798a00805a7",
+        "timestamp": "2026-03-22 00:19 UTC",
+        "done_steps": [
+          "Upload",
+          "QC",
+          "Clustering",
+          "Annotation",
+          "Diff. Expression"
+        ],
+        "completion": 5
+      }
     ]
   },
   "audit_log": [
@@ -182,6 +234,78 @@
       "team": "organization",
       "details": {
         "report_id": "c05e8090-b98d-4705-ac95-db49208206c5",
+        "visibility": "public"
+      }
+    },
+    {
+      "id": "4eb0d38b-2418-4e40-a490-b8bb661d117c",
+      "timestamp": "2026-03-22 00:13 UTC",
+      "event_type": "private_learning_logged",
+      "actor": "analyst",
+      "team": "individual",
+      "details": {
+        "completion": 1
+      }
+    },
+    {
+      "id": "0d308b50-8dd9-4f5c-bccf-12faa4cf24d4",
+      "timestamp": "2026-03-22 00:13 UTC",
+      "event_type": "private_learning_logged",
+      "actor": "analyst",
+      "team": "individual",
+      "details": {
+        "completion": 2
+      }
+    },
+    {
+      "id": "bb3f91c1-3e58-4a2b-a6fa-efd7aabb8d8a",
+      "timestamp": "2026-03-22 00:16 UTC",
+      "event_type": "private_learning_logged",
+      "actor": "analyst",
+      "team": "individual",
+      "details": {
+        "completion": 3
+      }
+    },
+    {
+      "id": "2954ac36-5c24-4ef0-8f20-fa5c38e842f1",
+      "timestamp": "2026-03-22 00:17 UTC",
+      "event_type": "private_learning_logged",
+      "actor": "analyst",
+      "team": "individual",
+      "details": {
+        "completion": 4
+      }
+    },
+    {
+      "id": "b258e3cf-a0e5-489f-a1b9-958255904f52",
+      "timestamp": "2026-03-22 00:19 UTC",
+      "event_type": "private_learning_logged",
+      "actor": "analyst",
+      "team": "individual",
+      "details": {
+        "completion": 5
+      }
+    },
+    {
+      "id": "6617f5fb-c94a-4155-b9da-da24d5bc4ddd",
+      "timestamp": "2026-03-22 00:24 UTC",
+      "event_type": "clinical_report_submitted",
+      "actor": "analyst",
+      "team": "individual",
+      "details": {
+        "report_id": "95730b29-1147-4f42-a232-7f56b34b9cee",
+        "visibility": "public"
+      }
+    },
+    {
+      "id": "67ed927f-8c05-441b-b0df-83a2c02254a7",
+      "timestamp": "2026-03-22 00:24 UTC",
+      "event_type": "clinical_report_submitted",
+      "actor": "analyst",
+      "team": "individual",
+      "details": {
+        "report_id": "eda8b3d4-f5b6-4f14-9222-4a2597ce0762",
         "visibility": "public"
       }
     }
@@ -348,6 +472,165 @@
             121295.41226123297,
             102005.79048038294,
             102005.79048038294
+          ]
+        },
+        "required_steps_complete": true,
+        "pipeline_steps": {
+          "Data Loaded": true,
+          "QC Performed": true,
+          "Clustering": true,
+          "Cell Annotation": true,
+          "DE Analysis": true,
+          "Pathway Analysis": true
+        }
+      }
+    },
+    {
+      "id": "95730b29-1147-4f42-a232-7f56b34b9cee",
+      "timestamp": "2026-03-22 00:24 UTC",
+      "submitted_by": "analyst",
+      "team": "individual",
+      "visibility": "public",
+      "report": {
+        "project": "PBMC_run1",
+        "analyst": "Simon",
+        "diagnosis": "Bioinformatician ",
+        "generated_at": "2026-03-22 02:24 UTC",
+        "notes": "n/a",
+        "metrics": {
+          "cells": 2698,
+          "genes": 13714,
+          "clusters": 6,
+          "cell_types": 13,
+          "de_genes_count": 50
+        },
+        "filters_used": {
+          "de_group": "0",
+          "de_top_genes": [
+            "RPS12",
+            "LDHB",
+            "RPS25",
+            "RPS27",
+            "RPS6",
+            "RPS3",
+            "CD3D",
+            "RPS14",
+            "RPL31",
+            "TPT1",
+            "RPL30",
+            "RPL3",
+            "RPL32",
+            "RPS27A",
+            "RPS15A",
+            "RPL9",
+            "RPLP2",
+            "RPS18",
+            "RPS29",
+            "EEF1A1"
+          ],
+          "pathway_terms": [
+            "Thyroid cancer",
+            "Bladder cancer",
+            "Ferroptosis",
+            "Endometrial cancer",
+            "Basal cell carcinoma",
+            "Mitophagy",
+            "Central carbon metabolism in cancer",
+            "Melanoma",
+            "Non-small cell lung cancer",
+            "p53 signaling pathway"
+          ],
+          "pathway_scores": [
+            125618.9446446357,
+            123544.88783416104,
+            123544.88783416104,
+            116522.31890946148,
+            114844.46974572667,
+            113293.39338050144,
+            112704.30065625212,
+            112131.59838572376,
+            112131.59838572376,
+            111851.11054552946
+          ]
+        },
+        "required_steps_complete": true,
+        "pipeline_steps": {
+          "Data Loaded": true,
+          "QC Performed": true,
+          "Clustering": true,
+          "Cell Annotation": true,
+          "DE Analysis": true,
+          "Pathway Analysis": true
+        }
+      }
+    },
+    {
+      "id": "eda8b3d4-f5b6-4f14-9222-4a2597ce0762",
+      "timestamp": "2026-03-22 00:24 UTC",
+      "submitted_by": "analyst",
+      "team": "individual",
+      "visibility": "public",
+      "report": {
+        "record_type": "pipeline_training_capture",
+        "project": "PBMC_run1",
+        "analyst": "Simon",
+        "diagnosis": "Bioinformatician ",
+        "generated_at": "2026-03-22 02:24 UTC",
+        "notes": "n/a",
+        "metrics": {
+          "cells": 2698,
+          "genes": 13714,
+          "clusters": 6,
+          "cell_types": 13,
+          "de_genes_count": 50
+        },
+        "filters_used": {
+          "de_group": "0",
+          "de_top_genes": [
+            "RPS12",
+            "LDHB",
+            "RPS25",
+            "RPS27",
+            "RPS6",
+            "RPS3",
+            "CD3D",
+            "RPS14",
+            "RPL31",
+            "TPT1",
+            "RPL30",
+            "RPL3",
+            "RPL32",
+            "RPS27A",
+            "RPS15A",
+            "RPL9",
+            "RPLP2",
+            "RPS18",
+            "RPS29",
+            "EEF1A1"
+          ],
+          "pathway_terms": [
+            "Thyroid cancer",
+            "Bladder cancer",
+            "Ferroptosis",
+            "Endometrial cancer",
+            "Basal cell carcinoma",
+            "Mitophagy",
+            "Central carbon metabolism in cancer",
+            "Melanoma",
+            "Non-small cell lung cancer",
+            "p53 signaling pathway"
+          ],
+          "pathway_scores": [
+            125618.9446446357,
+            123544.88783416104,
+            123544.88783416104,
+            116522.31890946148,
+            114844.46974572667,
+            113293.39338050144,
+            112704.30065625212,
+            112131.59838572376,
+            112131.59838572376,
+            111851.11054552946
           ]
         },
         "required_steps_complete": true,

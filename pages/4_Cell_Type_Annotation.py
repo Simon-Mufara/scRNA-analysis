@@ -478,4 +478,4 @@ Use alternatives for cross-validation when results are clinically sensitive.
     st.download_button("⬇️ Download Cell Type Summary (CSV)", data=csv,
                        file_name="cell_type_summary.csv", mime="text/csv")
 
-render_nav_buttons(4)
+render_nav_buttons(5)

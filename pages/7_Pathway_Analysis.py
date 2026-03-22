@@ -202,4 +202,4 @@ with tab_prerank:
             except Exception as e:
                 st.error(f"Pre-ranked GSEA failed: {e}")
 
-render_nav_buttons(7)
+render_nav_buttons(8)

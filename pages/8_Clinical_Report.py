@@ -433,6 +433,22 @@ def build_pdf(report_date_str: str, analyst_name: str, project_name: str) -> byt
 
 # ── Exports ───────────────────────────────────────────────────────────────────
 st.divider()
+st.markdown("### 📋 Customize PDF Report")
+st.caption("Select which sections to include in your PDF export:")
+
+# PDF customization checkboxes
+pdf_include_cols1, pdf_include_cols2 = st.columns(2)
+with pdf_include_cols1:
+    include_dataset_summary = st.checkbox("📊 Dataset Summary", value=True, help="Cell/gene counts, cluster info")
+    include_cell_populations = st.checkbox("🧬 Cell Populations", value=True, help="Cell type distribution table")
+    include_de_analysis = st.checkbox("🔬 Differential Expression", value=True, help="Top DE genes and volcano plots")
+
+with pdf_include_cols2:
+    include_pathways = st.checkbox("🔗 Pathway Enrichment", value=True, help="Enriched pathways and terms")
+    include_qc_metrics = st.checkbox("📈 QC Metrics", value=True, help="Quality control summary stats")
+    include_clinical_notes = st.checkbox("📝 Clinical Notes", value=True, help="Your interpretation & recommendations")
+
+st.markdown("---")
 st.markdown("### Download Report")
 
 report_lines = [
@@ -440,24 +456,72 @@ report_lines = [
     "Clinical Summary Report",
     f"Generated: {report_date}",
     f"Analyst:   {analyst or 'N/A'}  |  Project: {project or 'N/A'}  |  Diagnosis: {diagnosis or 'N/A'}",
-    "", "=" * 60, "1. DATASET SUMMARY", "=" * 60,
-    f"  Cells: {n_cells:,}  |  Genes: {n_genes:,}  |  Clusters: {n_clusters}  |  Cell Types: {n_cell_types}",
-    "", "=" * 60, "2. CELL POPULATIONS", "=" * 60,
+    "", "=" * 60, "1. REPORT CONTENTS", "=" * 60,
 ]
-for ct, count in ct_counts.items():
-    report_lines.append(f"  {ct}: {count:,} cells ({count/n_cells*100:.1f}%)")
-report_lines += ["", "=" * 60, "3. DIFFERENTIAL EXPRESSION", "=" * 60]
-report_lines.append(f"  Group: {de_group}  Top: {', '.join(de_genes[:20])}" if de_genes else "  Not performed.")
-report_lines += ["", "=" * 60, "4. PATHWAY ENRICHMENT", "=" * 60]
-if pathway_df is not None and not pathway_df.empty and "Term" in pathway_df.columns:
-    for _, row in pathway_df.head(8).iterrows():
-        adj_p = row.get("Adjusted P-value", "")
-        report_lines.append(f"  {row['Term']}  (adj.p={float(adj_p):.2e})" if adj_p != "" else f"  {row['Term']}")
-else:
-    report_lines.append("  Not performed.")
-report_lines += ["", "=" * 60, "5. CLINICAL INTERPRETATION", "=" * 60,
-                 notes.strip() if notes.strip() else "  No notes provided.",
-                 "", "=" * 60, "FOR RESEARCH USE ONLY", "=" * 60]
+
+# Build selected sections list
+selected_sections = []
+if include_dataset_summary:
+    selected_sections.append("Dataset Summary")
+if include_cell_populations:
+    selected_sections.append("Cell Populations")
+if include_de_analysis:
+    selected_sections.append("Differential Expression")
+if include_pathways:
+    selected_sections.append("Pathway Enrichment")
+if include_qc_metrics:
+    selected_sections.append("QC Metrics")
+if include_clinical_notes:
+    selected_sections.append("Clinical Notes")
+
+report_lines.append(f"  Selected sections: {', '.join(selected_sections) if selected_sections else 'None'}")
+report_lines += ["", "=" * 60]
+
+section_num = 2
+
+if include_dataset_summary:
+    report_lines += [f"{section_num}. DATASET SUMMARY", "=" * 60]
+    report_lines.append(f"  Cells: {n_cells:,}  |  Genes: {n_genes:,}  |  Clusters: {n_clusters}  |  Cell Types: {n_cell_types}")
+    report_lines += [""]
+    section_num += 1
+
+if include_cell_populations:
+    report_lines += [f"{section_num}. CELL POPULATIONS", "=" * 60]
+    for ct, count in ct_counts.items():
+        report_lines.append(f"  {ct}: {count:,} cells ({count/n_cells*100:.1f}%)")
+    report_lines += [""]
+    section_num += 1
+
+if include_de_analysis:
+    report_lines += [f"{section_num}. DIFFERENTIAL EXPRESSION", "=" * 60]
+    report_lines.append(f"  Group: {de_group}  Top: {', '.join(de_genes[:20])}" if de_genes else "  Not performed.")
+    report_lines += [""]
+    section_num += 1
+
+if include_pathways:
+    report_lines += [f"{section_num}. PATHWAY ENRICHMENT", "=" * 60]
+    if pathway_df is not None and not pathway_df.empty and "Term" in pathway_df.columns:
+        for _, row in pathway_df.head(8).iterrows():
+            adj_p = row.get("Adjusted P-value", "")
+            report_lines.append(f"  {row['Term']}  (adj.p={float(adj_p):.2e})" if adj_p != "" else f"  {row['Term']}")
+    else:
+        report_lines.append("  Not performed.")
+    report_lines += [""]
+    section_num += 1
+
+if include_qc_metrics and median_mito is not None:
+    report_lines += [f"{section_num}. QC METRICS", "=" * 60]
+    report_lines.append(f"  Median genes/cell: {median_genes_per_cell:,}")
+    report_lines.append(f"  Median mitochondrial %: {median_mito}%")
+    report_lines += [""]
+    section_num += 1
+
+if include_clinical_notes:
+    report_lines += [f"{section_num}. CLINICAL INTERPRETATION", "=" * 60]
+    report_lines.append(notes.strip() if notes.strip() else "  No notes provided.")
+    report_lines += [""]
+
+report_lines += ["=" * 60, "FOR RESEARCH USE ONLY", "=" * 60]
 report_text = "\n".join(report_lines)
 
 dl1, dl2, dl3 = st.columns(3)
@@ -520,4 +584,4 @@ if submit_report_clicked:
     st.success(f"Report submitted ({rec['visibility']}) and audit logged.")
     capture_pipeline_training_record(user_name, user_team, report_payload)
 
-render_nav_buttons(8)
+render_nav_buttons(9)

@@ -182,4 +182,4 @@ with tab_dotplot:
         else:
             st.warning(f"None of {genes} were found in this dataset.")
 
-render_nav_buttons(5)
+render_nav_buttons(6)

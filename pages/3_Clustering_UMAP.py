@@ -158,4 +158,4 @@ if "pca" in adata.uns and "variance_ratio" in adata.uns["pca"]:
     fig_pca.update_layout(paper_bgcolor="#0E1117", plot_bgcolor="#161B22")
     st.plotly_chart(fig_pca, use_container_width=True)
 
-render_nav_buttons(3)
+render_nav_buttons(4)

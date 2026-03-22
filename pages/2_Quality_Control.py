@@ -142,4 +142,4 @@ if st.button("▶ Run Quality Control Filter", type="primary"):
     import pandas as pd
     st.dataframe(stats_df, use_container_width=True)
 
-render_nav_buttons(2)
+render_nav_buttons(3)

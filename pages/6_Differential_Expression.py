@@ -218,4 +218,4 @@ col_dl2.download_button(
     mime="text/csv",
 )
 
-render_nav_buttons(6)
+render_nav_buttons(7)

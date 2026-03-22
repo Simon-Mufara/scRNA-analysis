@@ -441,4 +441,4 @@ with right:
         height=170,
     )
 
-render_nav_buttons(9)
+render_nav_buttons(10)
