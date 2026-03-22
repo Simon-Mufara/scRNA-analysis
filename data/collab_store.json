@@ -165,6 +165,60 @@
           "QC"
         ],
         "completion": 2
+      },
+      {
+        "id": "471f237b-a4f9-4af8-8a72-b77c10ef8947",
+        "timestamp": "2026-03-22 11:30 UTC",
+        "done_steps": [
+          "Upload"
+        ],
+        "completion": 1
+      },
+      {
+        "id": "fdd55d5b-c433-41e9-8b49-03026faad0bf",
+        "timestamp": "2026-03-22 11:30 UTC",
+        "done_steps": [
+          "Upload",
+          "QC"
+        ],
+        "completion": 2
+      },
+      {
+        "id": "f352368f-63cc-4eea-80c0-857798120fb8",
+        "timestamp": "2026-03-22 11:36 UTC",
+        "done_steps": [
+          "Upload",
+          "QC",
+          "Clustering"
+        ],
+        "completion": 3
+      },
+      {
+        "id": "28fe3b5e-2be8-431e-a2c2-7252697d8cc3",
+        "timestamp": "2026-03-22 11:59 UTC",
+        "done_steps": [
+          "Upload"
+        ],
+        "completion": 1
+      },
+      {
+        "id": "8605b9b4-a514-4024-8826-2e4991e6bfc4",
+        "timestamp": "2026-03-22 11:59 UTC",
+        "done_steps": [
+          "Upload",
+          "QC"
+        ],
+        "completion": 2
+      },
+      {
+        "id": "5f0b45f1-a963-4be2-807a-5b2343a80f8e",
+        "timestamp": "2026-03-22 12:01 UTC",
+        "done_steps": [
+          "Upload",
+          "QC",
+          "Clustering"
+        ],
+        "completion": 3
       }
     ]
   },
@@ -381,6 +435,66 @@
       "team": "individual",
       "details": {
         "completion": 2
+      }
+    },
+    {
+      "id": "81f34d98-11cf-4bbf-9872-95050d9e5b46",
+      "timestamp": "2026-03-22 11:30 UTC",
+      "event_type": "private_learning_logged",
+      "actor": "analyst",
+      "team": "individual",
+      "details": {
+        "completion": 1
+      }
+    },
+    {
+      "id": "ec876c33-c49c-4f96-b84e-1efb91be8706",
+      "timestamp": "2026-03-22 11:30 UTC",
+      "event_type": "private_learning_logged",
+      "actor": "analyst",
+      "team": "individual",
+      "details": {
+        "completion": 2
+      }
+    },
+    {
+      "id": "e2c50744-2120-45ab-9a15-e6447114d281",
+      "timestamp": "2026-03-22 11:36 UTC",
+      "event_type": "private_learning_logged",
+      "actor": "analyst",
+      "team": "individual",
+      "details": {
+        "completion": 3
+      }
+    },
+    {
+      "id": "7d4fffc0-ed37-4a79-a0be-c4ccecb4a4af",
+      "timestamp": "2026-03-22 11:59 UTC",
+      "event_type": "private_learning_logged",
+      "actor": "analyst",
+      "team": "individual",
+      "details": {
+        "completion": 1
+      }
+    },
+    {
+      "id": "7e767f60-7f13-44ae-b14e-25a388578eb4",
+      "timestamp": "2026-03-22 11:59 UTC",
+      "event_type": "private_learning_logged",
+      "actor": "analyst",
+      "team": "individual",
+      "details": {
+        "completion": 2
+      }
+    },
+    {
+      "id": "07c7cb55-9392-4f36-b73a-30ec385df0ff",
+      "timestamp": "2026-03-22 12:01 UTC",
+      "event_type": "private_learning_logged",
+      "actor": "analyst",
+      "team": "individual",
+      "details": {
+        "completion": 3
       }
     }
   ],

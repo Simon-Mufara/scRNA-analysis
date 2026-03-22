@@ -27,7 +27,13 @@ with _cl_img:
 
 adata = st.session_state.get("adata")
 if adata is None:
-    st.warning("⚠️ Please upload a dataset first (Step 1).")
+    st.error("❌ No dataset in session state!")
+    st.error("**How to fix:**")
+    st.write("1. Go to 'Upload Data' page and load a dataset")
+    st.write("2. Go to 'Quality Control' page and run QC filter")
+    st.write("3. Come back to this page")
+    with st.expander("🔧 Debug Info"):
+        st.write(f"Session state keys: {list(st.session_state.keys())}")
     st.stop()
 
 # ── Parameters ───────────────────────────────────────────────────────────────
@@ -75,21 +81,33 @@ if st.button("▶ Run Full Clustering Pipeline", type="primary"):
     error_details = None
 
     try:
+        # Pre-flight checks
         st.info(f"📊 Processing: {adata.n_obs:,} cells × {adata.n_vars:,} genes")
+
+        if adata is None:
+            raise RuntimeError("adata is None - dataset not loaded properly")
+
+        if adata.X is None:
+            raise RuntimeError("adata.X is None - no expression matrix")
+
+        st.info("✅ Data validation passed")
 
         with st.spinner("Running clustering pipeline..."):
             for i, step in enumerate(steps):
                 prog.progress((i + 1) / len(steps), text=f"{step}...")
 
-            adata = run_clustering_step(
-                adata,
-                n_top_genes=n_top,
-                n_pcs=n_pcs,
-                n_neighbors=n_nb,
-                resolution=res,
-                integration_method=integration_method,
-                batch_key=batch_key,
-            )
+            try:
+                adata = run_clustering_step(
+                    adata,
+                    n_top_genes=n_top,
+                    n_pcs=n_pcs,
+                    n_neighbors=n_nb,
+                    resolution=res,
+                    integration_method=integration_method,
+                    batch_key=batch_key,
+                )
+            except NameError as ne:
+                raise RuntimeError(f"Function import error: {ne}")
 
         st.session_state["adata"] = adata
         st.session_state.setdefault("pipeline_status", {})["Clustering"] = "done"
@@ -107,7 +125,12 @@ if st.button("▶ Run Full Clustering Pipeline", type="primary"):
         # Show detailed error information
         with st.expander("📋 Full error traceback (for debugging)"):
             import traceback
-            st.code(traceback.format_exc(), language="python")
+            tb = traceback.format_exc()
+            st.code(tb, language="python")
+
+            # Also log to console for server-side debugging
+            print(f"\n🔴 CLUSTERING ERROR: {error_details}")
+            print(f"Full traceback:\n{tb}")
 
     # Show cluster interpretation only if clustering succeeded
     if clustering_success and "leiden" in adata.obs.columns:
