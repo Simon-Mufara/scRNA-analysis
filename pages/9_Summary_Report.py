@@ -132,19 +132,35 @@ if "rank_genes_groups" in adata.uns:
     st.markdown("## 🔬 Marker Gene Summary")
 
     rgg = adata.uns.get("rank_genes_groups", {})
-    key = rgg.get("names", {})
+    key = rgg.get("names", None)
 
-    if key:
+    # Check if key exists and is not empty (works with numpy arrays and dicts)
+    if key is not None and len(key) > 0:
         # Show top markers across all groups
         st.markdown("Top differentially expressed genes (by group):")
 
         marker_summary = []
-        for group in list(key.keys())[:5]:  # Show top 5 groups
-            if isinstance(key[group], dict):
-                genes = list(key[group].keys())[:3]
-            else:
-                genes = list(key[group])[:3]
-            marker_summary.append(f"- **{group}**: {', '.join(genes)}")
+
+        # Handle both dict-like and array-like structures
+        if isinstance(key, dict):
+            groups_to_show = list(key.keys())[:5]
+            for group in groups_to_show:
+                if isinstance(key[group], dict):
+                    genes = list(key[group].keys())[:3]
+                else:
+                    genes = list(key[group])[:3]
+                marker_summary.append(f"- **{group}**: {', '.join(str(g) for g in genes)}")
+        else:
+            # Handle numpy array structure from rank_genes_groups
+            try:
+                # For numpy structured arrays, iterate through field names
+                groups_to_show = list(key.dtype.names)[:5] if hasattr(key, 'dtype') else []
+                for group in groups_to_show:
+                    genes = list(key[group][:3])
+                    marker_summary.append(f"- **{group}**: {', '.join(str(g) for g in genes)}")
+            except (AttributeError, TypeError):
+                # Fallback: just show that data exists
+                marker_summary = ["Marker gene data available (complex format)"]
 
         st.markdown("\n".join(marker_summary))
 
