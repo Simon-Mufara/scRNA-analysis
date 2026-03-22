@@ -7,7 +7,8 @@ import io
 import plotly.express as px
 import plotly.graph_objects as go
 
-from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance, PALETTE
+from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance
+from utils.export import create_analysis_report_pdf, export_to_csv, PALETTE
 from utils.auth import get_current_user
 from utils.collaboration import capture_pipeline_training_record, submit_clinical_report
 
@@ -531,17 +532,37 @@ with dl1:
         file_name=f"scRNA_report_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
         mime="text/plain", use_container_width=True)
 with dl2:
-    pdf_bytes = build_pdf(report_date, analyst, project)
-    if pdf_bytes:
-        st.download_button("📕 PDF Report", data=pdf_bytes,
-            file_name=f"scRNA_clinical_report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-            mime="application/pdf", type="primary", use_container_width=True)
+    # Use improved PDF generation with proper formatting
+    try:
+        pdf_bytes = create_analysis_report_pdf(
+            adata,
+            title="scRNA-seq Clinical Report",
+            include_sections={
+                "summary": include_dataset_summary,
+                "qc": include_qc_metrics,
+                "clustering": True,
+                "annotation": include_cell_populations,
+            }
+        )
+        if pdf_bytes:
+            st.download_button("📕 PDF Report", data=pdf_bytes,
+                file_name=f"scRNA_clinical_report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                mime="application/pdf", type="primary", use_container_width=True)
+    except Exception as e:
+        st.warning(f"PDF generation note: {str(e)[:100]}")
+        # Fallback to text-based export
+        pdf_bytes = build_pdf(report_date, analyst, project)
+        if pdf_bytes:
+            st.download_button("📕 PDF Report (Text)", data=pdf_bytes,
+                file_name=f"scRNA_clinical_report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                mime="application/pdf", type="primary", use_container_width=True)
 with dl3:
     if adata is not None and "cell_type" in adata.obs.columns:
         ct_export = adata.obs["cell_type"].value_counts().reset_index()
         ct_export.columns = ["Cell Type", "Cell Count"]
         ct_export["Proportion (%)"] = (ct_export["Cell Count"] / adata.n_obs * 100).round(2)
-        st.download_button("📊 Cell Table (.csv)", data=ct_export.to_csv(index=False).encode(),
+        csv_bytes = export_to_csv(ct_export, numeric_cols=["Cell Count", "Proportion (%)"])
+        st.download_button("📊 Cell Table (.csv)", data=csv_bytes,
             file_name="cell_type_summary.csv", mime="text/csv", use_container_width=True)
 
 st.caption("For research use only. Not intended for clinical diagnosis.")

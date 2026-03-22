@@ -8,6 +8,7 @@ from datetime import datetime
 
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons
 from utils.interpretation import show_explanation_button
+from utils.export import export_to_excel, export_to_csv
 
 st.set_page_config(page_title="Summary Report", layout="wide")
 inject_global_css()
@@ -235,32 +236,24 @@ summary_df = pd.DataFrame(summary_data)
 
 col_download1, col_download2 = st.columns(2)
 
-# CSV export
-csv = summary_df.to_csv(index=False).encode()
+# CSV export using proper formatting
+csv_bytes = export_to_csv(summary_df)
 col_download1.download_button(
     "⬇️ Download Summary (CSV)",
-    data=csv,
+    data=csv_bytes,
     file_name="analysis_summary.csv",
     mime="text/csv",
 )
 
-# Excel export
-import io as _io
-xlsx_buf = _io.BytesIO()
-with pd.ExcelWriter(xlsx_buf, engine="openpyxl") as writer:
-    summary_df.to_excel(writer, index=False, sheet_name="Summary")
-    if "leiden" in adata.obs.columns:
-        adata.obs["leiden"].value_counts().reset_index().to_excel(
-            writer, index=False, sheet_name="Cluster_Sizes"
-        )
-    if "cell_type" in adata.obs.columns:
-        adata.obs["cell_type"].value_counts().reset_index().to_excel(
-            writer, index=False, sheet_name="Cell_Types"
-        )
-
+# Excel export with sheet 1: Summary
+xlsx_bytes = export_to_excel(
+    summary_df,
+    sheet_name="Summary",
+    numeric_cols=[]
+)
 col_download2.download_button(
     "⬇️ Download Summary (Excel)",
-    data=xlsx_buf.getvalue(),
+    data=xlsx_bytes,
     file_name="analysis_summary.xlsx",
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 )
