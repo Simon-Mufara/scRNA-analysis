@@ -8,6 +8,8 @@ import numpy as np
 import io as _io
 from typing import Optional
 from fpdf import FPDF
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 
 def prepare_df_for_export(df: pd.DataFrame, numeric_cols: list = None,
@@ -52,6 +54,7 @@ def export_to_excel(df: pd.DataFrame, sheet_name: str = "Results",
                    title: str = None, numeric_cols: list = None) -> bytes:
     """
     Export DataFrame to proper Excel format with formatting.
+    Ensures each value is in a separate cell with proper formatting.
 
     Args:
         df: DataFrame to export
@@ -62,54 +65,65 @@ def export_to_excel(df: pd.DataFrame, sheet_name: str = "Results",
     Returns:
         Excel file bytes
     """
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-
     # Prepare data for export
-    export_df = prepare_df_for_export(df, numeric_cols=numeric_cols)
+    export_df = prepare_df_for_export(df, numeric_cols=numeric_cols).copy()
 
-    xlsx_buf = _io.BytesIO()
-    with pd.ExcelWriter(xlsx_buf, engine="openpyxl") as writer:
-        export_df.to_excel(writer, index=False, sheet_name=sheet_name)
+    # Create workbook and worksheet
+    wb = Workbook()
+    ws = wb.active
+    ws.title = sheet_name
 
-        ws = writer.sheets[sheet_name]
+    # Add title row if provided
+    if title:
+        ws.append([title])
+        title_cell = ws.cell(row=1, column=1)
+        title_cell.font = Font(bold=True, size=12, color="FFFFFF")
+        title_cell.fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+        ws.row_dimensions[1].height = 20
 
-        # Format header row
-        header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
-        header_font = Font(bold=True, color="FFFFFF", size=11)
+    # Add header row
+    header_row_num = 2 if title else 1
+    for col_num, col_title in enumerate(export_df.columns, 1):
+        cell = ws.cell(row=header_row_num, column=col_num)
+        cell.value = str(col_title)
+        cell.fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+        cell.font = Font(bold=True, color="FFFFFF", size=11)
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
-        for col_num, col_title in enumerate(export_df.columns, 1):
-            cell = ws.cell(row=1, column=col_num)
-            cell.fill = header_fill
-            cell.font = header_font
-            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    # Add data rows
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
 
-        # Set column widths and center align
-        thin_border = Border(
-            left=Side(style='thin'),
-            right=Side(style='thin'),
-            top=Side(style='thin'),
-            bottom=Side(style='thin')
+    for row_num, row_data in enumerate(export_df.values, start=header_row_num + 1):
+        for col_num, cell_value in enumerate(row_data, 1):
+            cell = ws.cell(row=row_num, column=col_num)
+            cell.value = str(cell_value) if cell_value is not None else ""
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.border = thin_border
+
+    # Set column widths
+    for col_num, col_title in enumerate(export_df.columns, 1):
+        col_letter = ws.cell(row=header_row_num, column=col_num).column_letter
+        max_len = max(
+            len(str(col_title)),
+            max((len(str(export_df.iloc[i, col_num-1])) for i in range(len(export_df))), default=0)
         )
+        adjusted_width = min(max_len + 3, 50)
+        ws.column_dimensions[col_letter].width = adjusted_width
 
-        for col_num, col_title in enumerate(export_df.columns, 1):
-            col_letter = ws.cell(row=1, column=col_num).column_letter
-            max_len = max(
-                len(str(col_title)),
-                max((len(str(export_df.iloc[i, col_num-1])) for i in range(len(export_df))), default=0)
-            )
-            adjusted_width = min(max_len + 3, 50)
-            ws.column_dimensions[col_letter].width = adjusted_width
+    # Freeze header row
+    ws.freeze_panes = f"A{header_row_num + 1}"
 
-            # Center align all cells
-            for row_num in range(2, len(export_df) + 2):
-                cell = ws.cell(row=row_num, column=col_num)
-                cell.alignment = Alignment(horizontal="center", vertical="center")
-                cell.border = thin_border
+    # Save to bytes
+    excel_buf = _io.BytesIO()
+    wb.save(excel_buf)
+    excel_buf.seek(0)
 
-        # Freeze header row
-        ws.freeze_panes = "A2"
-
-    return xlsx_buf.getvalue()
+    return excel_buf.getvalue()
 
 
 def export_to_csv(df: pd.DataFrame, numeric_cols: list = None) -> bytes:
@@ -128,14 +142,16 @@ def export_to_csv(df: pd.DataFrame, numeric_cols: list = None) -> bytes:
     export_df = prepare_df_for_export(df, numeric_cols=numeric_cols)
 
     # Convert to CSV with proper delimiter and encoding
-    csv_bytes = export_df.to_csv(
+    csv_string = export_df.to_csv(
         index=False,
         sep=',',  # Standard comma separator
-        quoting=1,  # Quote minimal fields
+        quoting=1,  # Quote minimal fields (csv.QUOTE_ALL)
         doublequote=True,
-        lineterminator='\n',
-        encoding='utf-8'
-    ).encode('utf-8')
+        lineterminator='\n'
+    )
+
+    # Encode to UTF-8 bytes
+    csv_bytes = csv_string.encode('utf-8')
 
     return csv_bytes
 
