@@ -7,6 +7,7 @@ from core.pipeline import build_prerank_input
 from utils.pathway import get_top_pathways, run_gsea_prerank
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance, PLOTLY_TEMPLATE
 from utils.interpretation import show_explanation_button, interpret_pathway_results
+from utils.export import export_to_excel, export_to_csv
 from config import PATHWAY_GENE_SETS
 
 st.set_page_config(page_title="Pathway Analysis", layout="wide")
@@ -74,7 +75,7 @@ def show_pathway_results(df: pd.DataFrame):
             fig2.update_layout(paper_bgcolor="#0E1117", plot_bgcolor="#161B22", height=400)
             st.plotly_chart(fig2, use_container_width=True)
 
-    csv = df.to_csv(index=False).encode()
+    csv = export_to_csv(df, numeric_cols=None)
 
     # ── Interpretation ──────────────────────────────────────────────────────────
     st.divider()
@@ -86,20 +87,20 @@ def show_pathway_results(df: pd.DataFrame):
     show_explanation_button("pathway", data=None, button_key="pathway_explain")
     st.divider()
 
-    # ── Export as xlsx for proper Excel display ──────────────────────────────
-    import io as _io
-    xlsx_buf = _io.BytesIO()
-    with pd.ExcelWriter(xlsx_buf, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name="Pathway_Results")
-        ws = writer.sheets["Pathway_Results"]
-        for col in ws.columns:
-            max_len = max(len(str(cell.value or "")) for cell in col)
-            ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 60)
+    # ── Export with proper formatting ──────────────────────────────────────────
+    numeric_cols = ["Adjusted P-value", "Combined Score"]
+    numeric_cols = [col for col in numeric_cols if col in df.columns]
+
+    xlsx_bytes = export_to_excel(
+        df,
+        sheet_name="Pathway_Results",
+        numeric_cols=numeric_cols
+    )
 
     dl1, dl2 = st.columns(2)
     dl1.download_button(
         "⬇️ Download Pathway Results (.xlsx)",
-        data=xlsx_buf.getvalue(),
+        data=xlsx_bytes,
         file_name="pathway_results.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         type="primary",
