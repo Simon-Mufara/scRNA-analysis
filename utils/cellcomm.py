@@ -1,23 +1,31 @@
 """
-Cell-cell communication analysis using curated ligand-receptor pairs.
-Identifies potential interactions between cell types based on gene expression.
+NicheNet-inspired cell-cell communication analysis.
+Identifies sender/receiver cells and infers communication based on ligand-receptor-target relationships.
+Rule-based approach without external APIs.
 """
 
 import pandas as pd
 import numpy as np
 import streamlit as st
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Set
 
 
-# Curated ligand-receptor database (simplified, high-confidence pairs)
-LIGAND_RECEPTOR_PAIRS = {
+# Ligand-Receptor pairs with downstream target genes (canonical signaling targets)
+LIGAND_RECEPTOR_NETWORK = {
     "TNF-TNFR1": {
         "ligand": "TNF",
         "receptor": "TNFR1",
         "ligand_full": "Tumor Necrosis Factor",
         "receptor_full": "TNF Receptor 1",
         "description": "Pro-inflammatory cytokine signaling",
-        "context": "Inflammatory response, immune activation"
+        "context": "Inflammatory response, immune activation",
+        "target_genes": {
+            "IL6": "Interleukin 6 (amplifies inflammation)",
+            "IL8": "Interleukin 8 (neutrophil recruitment)",
+            "ICAM1": "Intercellular Adhesion Molecule (cell adhesion)",
+            "CXCL10": "Chemokine (immune cell recruitment)",
+            "MCP1": "Monocyte Chemoattractant Protein",
+        }
     },
     "IFNG-IFNGR1": {
         "ligand": "IFNG",
@@ -25,7 +33,14 @@ LIGAND_RECEPTOR_PAIRS = {
         "ligand_full": "Interferon Gamma",
         "receptor_full": "IFN-Gamma Receptor 1",
         "description": "Interferon signaling",
-        "context": "Immune defense, macrophage activation"
+        "context": "Immune defense, macrophage activation",
+        "target_genes": {
+            "HLA-DRA": "MHC Class II (antigen presentation)",
+            "IRGS": "Interferon-responsive genes (immune response)",
+            "IDO1": "Indoleamine 2,3-dioxygenase (immune regulation)",
+            "STAT1": "Signal Transducer and Activator (IFN signaling)",
+            "GBP1": "GTPase (intracellular immunity)",
+        }
     },
     "IL2-IL2RA": {
         "ligand": "IL2",
@@ -33,7 +48,14 @@ LIGAND_RECEPTOR_PAIRS = {
         "ligand_full": "Interleukin 2",
         "receptor_full": "IL-2 Receptor Alpha",
         "description": "T cell growth factor",
-        "context": "T cell expansion and activation"
+        "context": "T cell expansion and activation",
+        "target_genes": {
+            "IFNG": "Interferon Gamma (T cell effector)",
+            "TNF": "Tumor Necrosis Factor (T cell activation)",
+            "GZMA": "Granzyme A (cytotoxicity)",
+            "PRF1": "Perforin (cytotoxicity)",
+            "FCER1G": "Fc Receptor Gamma (immune signaling)",
+        }
     },
     "VEGFA-FLT1": {
         "ligand": "VEGFA",
@@ -41,7 +63,14 @@ LIGAND_RECEPTOR_PAIRS = {
         "ligand_full": "Vascular Endothelial Growth Factor A",
         "receptor_full": "Fms-related Tyrosine Kinase 1",
         "description": "Angiogenesis and vascular development",
-        "context": "Vessel formation, endothelial cell activation"
+        "context": "Vessel formation, endothelial cell activation",
+        "target_genes": {
+            "PDGFB": "Platelet-derived Growth Factor (SMC recruitment)",
+            "ANGPT1": "Angiopoietin 1 (vascular maturation)",
+            "CDH5": "Cadherin 5 (cell-cell adhesion)",
+            "KDR": "Kinase Insert Domain Receptor (angiogenic signaling)",
+            "FLK1": "Fetal Liver Kinase 1 (VEGF co-receptor)",
+        }
     },
     "FGF1-FGFR1": {
         "ligand": "FGF1",
@@ -49,7 +78,14 @@ LIGAND_RECEPTOR_PAIRS = {
         "ligand_full": "Fibroblast Growth Factor 1",
         "receptor_full": "FGF Receptor 1",
         "description": "Fibroblast signaling",
-        "context": "Cell proliferation, tissue repair"
+        "context": "Cell proliferation, tissue repair",
+        "target_genes": {
+            "MMP2": "Matrix Metalloproteinase 2 (ECM remodeling)",
+            "COL1A1": "Collagen Type I (ECM production)",
+            "TIMP1": "TIMP Metallopeptidase Inhibitor (ECM regulation)",
+            "CTGF": "Connective Tissue Growth Factor (fibrosis)",
+            "SMA": "Smooth Muscle Actin (myofibroblast marker)",
+        }
     },
     "PDGFA-PDGFRA": {
         "ligand": "PDGFA",
@@ -57,15 +93,28 @@ LIGAND_RECEPTOR_PAIRS = {
         "ligand_full": "Platelet-derived Growth Factor A",
         "receptor_full": "PDGF Receptor Alpha",
         "description": "Cell growth and migration",
-        "context": "Mesenchymal cell recruitment, fibrosis"
+        "context": "Mesenchymal cell recruitment, fibrosis",
+        "target_genes": {
+            "MMP9": "Matrix Metalloproteinase 9 (invasion)",
+            "ACTA2": "Actin Alpha 2 (myofibroblast)",
+            "POSTN": "Periostin (fibrosis)",
+            "FAP": "Fibroblast Activation Protein (CAF marker)",
+            "ITGA5": "Integrin Alpha 5 (cell adhesion)",
+        }
     },
     "CDH1-CDH1": {
         "ligand": "CDH1",
         "receptor": "CDH1",
-        "ligand_full": "E-Cadherin (Calcium-dependent cell adhesion protein)",
+        "ligand_full": "E-Cadherin",
         "receptor_full": "E-Cadherin receptor",
         "description": "Homophilic cell-cell adhesion",
-        "context": "Cell-cell contacts, tissue organization"
+        "context": "Cell-cell contacts, tissue organization",
+        "target_genes": {
+            "CTNNB1": "Beta-catenin (adhesion signaling)",
+            "CDH3": "Cadherin 3 (cell adhesion)",
+            "ZO1": "Zonula Occludens-1 (tight junctions)",
+            "OCLN": "Occludin (tight junctions)",
+        }
     },
     "ICAM1-ITGAM": {
         "ligand": "ICAM1",
@@ -73,229 +122,352 @@ LIGAND_RECEPTOR_PAIRS = {
         "ligand_full": "Intercellular Adhesion Molecule 1",
         "receptor_full": "Integrin Alpha M",
         "description": "Immune cell recruitment and adhesion",
-        "context": "Leukocyte extravasation, immune response"
+        "context": "Leukocyte extravasation, immune response",
+        "target_genes": {
+            "TNF": "Tumor Necrosis Factor (activation)",
+            "IL1B": "Interleukin 1 Beta (inflammation)",
+            "ROS1": "Reactive Oxygen Species production",
+            "LYZ": "Lysozyme (antimicrobial)",
+        }
     },
 }
 
-# Cell type expressing common ligands
-CELL_TYPE_LIGANDS = {
-    "T cell": ["IL2", "IFNG", "TNF"],
-    "Macrophage": ["TNF", "IL6", "IL1B"],
-    "NK cell": ["IFNG", "TNF", "FASL"],
-    "Fibroblast": ["PDGFA", "FGF1", "VEGFA"],
-    "Endothelial": ["VEGFA", "FGF1"],
-    "B cell": ["IL2", "TNF"],
+# Cell type profiles: which ligands and receptors they express
+CELL_TYPE_PROFILES = {
+    "T cell": {
+        "ligands": ["IL2", "IFNG", "TNF", "FASL"],
+        "receptors": ["IL2RA", "TNFR1", "IFNGR1"],
+        "role": "Immune effector cell"
+    },
+    "Macrophage": {
+        "ligands": ["TNF", "IL6", "IL1B"],
+        "receptors": ["TNFR1", "IL1R1", "IFNGR1"],
+        "role": "Innate immune and antigen-presenting cell"
+    },
+    "NK cell": {
+        "ligands": ["IFNG", "TNF", "FASL"],
+        "receptors": ["TNFR1", "IFNGR1"],
+        "role": "Cytotoxic immune cell"
+    },
+    "Fibroblast": {
+        "ligands": ["PDGFA", "FGF1", "VEGFA"],
+        "receptors": ["PDGFRA", "FGFR1", "TNFR1"],
+        "role": "ECM-producing stromal cell"
+    },
+    "Endothelial": {
+        "ligands": ["VEGFA", "FGF1"],
+        "receptors": ["FLT1", "FGFR1", "PDGFRA"],
+        "role": "Vascular cell"
+    },
+    "B cell": {
+        "ligands": ["IL2", "TNF"],
+        "receptors": ["TNFR1", "IL1R1"],
+        "role": "Antibody-producing cell"
+    },
+    "Dendritic cell": {
+        "ligands": ["IL6", "TNF"],
+        "receptors": ["IFNGR1", "TNFR1"],
+        "role": "Antigen-presenting cell"
+    },
 }
 
-# Cell type expressing common receptors
-CELL_TYPE_RECEPTORS = {
-    "T cell": ["IL2RA", "TNFR1", "IFNGR1"],
-    "Macrophage": ["TNFR1", "IL1R1", "IFNGR1"],
-    "Endothelial": ["FLT1", "FGFR1", "PDGFRA"],
-    "Fibroblast": ["PDGFRA", "FGFR1", "TNFR1"],
-    "NK cell": ["TNFR1", "IFNGR1"],
-    "B cell": ["TNFR1", "IL1R1"],
-}
 
-
-def get_ligand_receptor_info(pair_key: str) -> Dict:
+def infer_sender_clusters(adata, cluster_col: str = "leiden") -> Dict[str, Dict]:
     """
-    Get detailed information about a ligand-receptor pair.
+    Identify sender clusters based on ligand expression.
 
-    Args:
-        pair_key: Key from LIGAND_RECEPTOR_PAIRS dict
-
-    Returns:
-        Dictionary with full pair information
+    NicheNet logic: Sender cells express ligands that signal to neighbors.
     """
-    return LIGAND_RECEPTOR_PAIRS.get(pair_key, {})
+    if cluster_col not in adata.obs.columns:
+        return {}
+
+    senders = {}
+    ligand_genes = set()
+
+    # Collect all ligand genes
+    for pair_info in LIGAND_RECEPTOR_NETWORK.values():
+        ligand_genes.add(pair_info["ligand"])
+
+    # Check each cluster
+    for cluster_id in adata.obs[cluster_col].unique():
+        cluster_data = adata[adata.obs[cluster_col] == cluster_id]
+
+        ligand_expr = {}
+        for ligand in ligand_genes:
+            if ligand in adata.var_names:
+                expr_vec = cluster_data[:, ligand].X
+                if hasattr(expr_vec, 'toarray'):
+                    expr_vec = expr_vec.toarray().flatten()
+                else:
+                    expr_vec = np.asarray(expr_vec).flatten()
+
+                mean_expr = np.mean(expr_vec)
+                pct_expressed = 100 * np.sum(expr_vec > 0) / len(expr_vec)
+
+                if mean_expr > 0.1 and pct_expressed > 10:  # Expressed in >10% of cells
+                    ligand_expr[ligand] = {
+                        "mean_expr": mean_expr,
+                        "pct_expressed": pct_expressed
+                    }
+
+        if ligand_expr:
+            senders[cluster_id] = {
+                "ligands": ligand_expr,
+                "n_cells": len(cluster_data),
+                "role": "Ligand-producing (sender) cell cluster"
+            }
+
+    return senders
 
 
-def render_ligand_tooltip(pair_key: str) -> str:
+def infer_receiver_clusters(adata, cluster_col: str = "leiden") -> Dict[str, Dict]:
     """
-    Create a tooltip explanation for a ligand-receptor pair.
+    Identify receiver clusters based on receptor expression.
 
-    Returns formatted markdown/HTML for the tooltip
+    NicheNet logic: Receiver cells express receptors that receive signals from neighbors.
     """
-    pair_info = get_ligand_receptor_info(pair_key)
-    if not pair_info:
-        return "Unknown pair"
+    if cluster_col not in adata.obs.columns:
+        return {}
 
-    return f"""
-    <div style="background:rgba(22,27,34,0.8);border:1px solid #21262D;border-radius:8px;padding:12px;max-width:300px;">
-        <div style="font-weight:700;color:#00D4FF;margin-bottom:8px;">{pair_key}</div>
-        <div style="color:#E6EDF3;font-size:0.85rem;margin-bottom:6px;">
-            <b>Ligand:</b> {pair_info.get('ligand_full', pair_info.get('ligand', 'Unknown'))}
-        </div>
-        <div style="color:#E6EDF3;font-size:0.85rem;margin-bottom:6px;">
-            <b>Receptor:</b> {pair_info.get('receptor_full', pair_info.get('receptor', 'Unknown'))}
-        </div>
-        <div style="color:#8B949E;font-size:0.8rem;margin-bottom:6px;">
-            {pair_info.get('description', 'Cell-cell signaling')}
-        </div>
-        <div style="color:#6E7681;font-size:0.75rem;font-style:italic;">
-            Context: {pair_info.get('context', 'Cell communication')}
-        </div>
-    </div>
+    receivers = {}
+    receptor_genes = set()
+
+    # Collect all receptor genes
+    for pair_info in LIGAND_RECEPTOR_NETWORK.values():
+        receptor_genes.add(pair_info["receptor"])
+
+    # Check each cluster
+    for cluster_id in adata.obs[cluster_col].unique():
+        cluster_data = adata[adata.obs[cluster_col] == cluster_id]
+
+        receptor_expr = {}
+        for receptor in receptor_genes:
+            if receptor in adata.var_names:
+                expr_vec = cluster_data[:, receptor].X
+                if hasattr(expr_vec, 'toarray'):
+                    expr_vec = expr_vec.toarray().flatten()
+                else:
+                    expr_vec = np.asarray(expr_vec).flatten()
+
+                mean_expr = np.mean(expr_vec)
+                pct_expressed = 100 * np.sum(expr_vec > 0) / len(expr_vec)
+
+                if mean_expr > 0.1 and pct_expressed > 10:  # Expressed in >10% of cells
+                    receptor_expr[receptor] = {
+                        "mean_expr": mean_expr,
+                        "pct_expressed": pct_expressed
+                    }
+
+        if receptor_expr:
+            receivers[cluster_id] = {
+                "receptors": receptor_expr,
+                "n_cells": len(cluster_data),
+                "role": "Receptor-expressing (receiver) cell cluster"
+            }
+
+    return receivers
+
+
+def infer_cell_communication(adata, sender_id, receiver_id) -> pd.DataFrame:
     """
+    Infer communication from sender to receiver cluster using NicheNet logic.
 
-
-def identify_cell_communication(adata, sender_cell_type: str, receiver_cell_type: str) -> pd.DataFrame:
+    Returns interactions with target genes that would be affected.
     """
-    Identify potential cell-cell communication between two cell types.
+    if "leiden" not in adata.obs.columns:
+        return pd.DataFrame()
 
-    Args:
-        adata: AnnData object with cell_type annotations
-        sender_cell_type: Expressing cell type
-        receiver_cell_type: Receiving cell type
+    sender_data = adata[adata.obs["leiden"] == sender_id]
+    receiver_data = adata[adata.obs["leiden"] == receiver_id]
 
-    Returns:
-        DataFrame with potential interactions
-    """
-    if "cell_type" not in adata.obs.columns:
+    if len(sender_data) == 0 or len(receiver_data) == 0:
         return pd.DataFrame()
 
     interactions = []
 
-    # Get cells of each type
-    sender_cells = adata[adata.obs["cell_type"] == sender_cell_type]
-    receiver_cells = adata[adata.obs["cell_type"] == receiver_cell_type]
-
-    if len(sender_cells) == 0 or len(receiver_cells) == 0:
-        return pd.DataFrame()
-
-    # Check each known ligand-receptor pair
-    for pair_key, pair_info in LIGAND_RECEPTOR_PAIRS.items():
-        ligand = pair_info.get("ligand")
-        receptor = pair_info.get("receptor")
+    # Check each ligand-receptor pair
+    for pair_key, pair_info in LIGAND_RECEPTOR_NETWORK.items():
+        ligand = pair_info["ligand"]
+        receptor = pair_info["receptor"]
 
         if ligand not in adata.var_names or receptor not in adata.var_names:
             continue
 
-        # Calculate mean expression in each cell type
-        ligand_expr_sender = sender_cells[:, ligand].X
-        if hasattr(ligand_expr_sender, 'toarray'):
-            ligand_expr_sender = ligand_expr_sender.toarray().flatten()
+        # Check sender expresses ligand
+        ligand_expr = sender_data[:, ligand].X
+        if hasattr(ligand_expr, 'toarray'):
+            ligand_expr = ligand_expr.toarray().flatten()
         else:
-            ligand_expr_sender = np.asarray(ligand_expr_sender).flatten()
-        ligand_sender = np.mean(ligand_expr_sender)
+            ligand_expr = np.asarray(ligand_expr).flatten()
 
-        receptor_expr_receiver = receiver_cells[:, receptor].X
-        if hasattr(receptor_expr_receiver, 'toarray'):
-            receptor_expr_receiver = receptor_expr_receiver.toarray().flatten()
+        sender_ligand_level = np.mean(ligand_expr)
+
+        # Check receiver expresses receptor
+        receptor_expr = receiver_data[:, receptor].X
+        if hasattr(receptor_expr, 'toarray'):
+            receptor_expr = receptor_expr.toarray().flatten()
         else:
-            receptor_expr_receiver = np.asarray(receptor_expr_receiver).flatten()
-        receptor_receiver = np.mean(receptor_expr_receiver)
+            receptor_expr = np.asarray(receptor_expr).flatten()
+
+        receiver_receptor_level = np.mean(receptor_expr)
 
         # Only include if both are expressed
-        if ligand_sender > 0 and receptor_receiver > 0:
-            interaction_score = ligand_sender * receptor_receiver
+        if sender_ligand_level > 0 and receiver_receptor_level > 0:
+            interaction_score = sender_ligand_level * receiver_receptor_level
+
+            # Get target genes that would be affected
+            target_genes = pair_info.get("target_genes", {})
+
             interactions.append({
                 "Pair": pair_key,
                 "Ligand": ligand,
                 "Receptor": receptor,
-                "Ligand Expr (Sender)": f"{ligand_sender:.2f}",
-                "Receptor Expr (Receiver)": f"{receptor_receiver:.2f}",
+                "Ligand Expression": f"{sender_ligand_level:.2f}",
+                "Receptor Expression": f"{receiver_receptor_level:.2f}",
                 "Interaction Score": f"{interaction_score:.2f}",
+                "Target Genes": ", ".join(list(target_genes.keys())[:3]),
                 "Description": pair_info.get("description", ""),
             })
 
     return pd.DataFrame(interactions)
 
 
-def get_sender_receiver_overview(adata) -> Dict[str, List[str]]:
+def get_downstream_targets(pair_key: str) -> Dict[str, str]:
     """
-    Get overview of which cell types are likely senders and receivers.
+    Get downstream target genes affected by a ligand-receptor pair.
 
-    Returns:
-        Dictionary with sender and receiver cell types
+    NicheNet logic: Identifies genes whose expression changes in response to signaling.
     """
-    if "cell_type" not in adata.obs.columns:
-        return {"senders": [], "receivers": []}
+    if pair_key not in LIGAND_RECEPTOR_NETWORK:
+        return {}
 
-    senders = []
-    receivers = []
-
-    cell_types = adata.obs["cell_type"].unique()
-
-    for cell_type in cell_types:
-        # Check if likely sender (expresses ligands)
-        cell_data = adata[adata.obs["cell_type"] == cell_type]
-
-        ligand_genes = [lr.split("-")[0] for lr in LIGAND_RECEPTOR_PAIRS.keys()]
-        receptor_genes = [lr.split("-")[1] for lr in LIGAND_RECEPTOR_PAIRS.keys()]
-
-        ligands_found = [g for g in ligand_genes if g in adata.var_names]
-        receptors_found = [g for g in receptor_genes if g in adata.var_names]
-
-        if ligands_found:
-            ligand_expr = [
-                np.mean(cell_data[:, g].X.toarray().flatten()) if hasattr(cell_data[:, g].X, 'toarray')
-                else np.mean(cell_data[:, g].X) for g in ligands_found
-            ]
-            if np.mean(ligand_expr) > 0.1:
-                senders.append(cell_type)
-
-        if receptors_found:
-            receptor_expr = [
-                np.mean(cell_data[:, g].X.toarray().flatten()) if hasattr(cell_data[:, g].X, 'toarray')
-                else np.mean(cell_data[:, g].X) for g in receptors_found
-            ]
-            if np.mean(receptor_expr) > 0.1:
-                receivers.append(cell_type)
-
-    return {
-        "senders": list(set(senders)),
-        "receivers": list(set(receivers)),
-    }
+    return LIGAND_RECEPTOR_NETWORK[pair_key].get("target_genes", {})
 
 
-def show_cell_communication_panel(adata, sender_type: str, receiver_type: str) -> None:
+def generate_nichenet_explanation(sender_id, receiver_id, pair_key: str,
+                                 adata=None) -> str:
     """
-    Display comprehensive cell-cell communication panel with explanations.
+    Generate NicheNet-style explanation of cell-cell communication.
 
-    Args:
-        adata: AnnData object
-        sender_type: Sender cell type
-        receiver_type: Receiver cell type
+    Output format:
+    "Cluster A may influence Cluster B through signaling molecules (ligands)
+     that affect gene expression."
     """
-    st.markdown(f"### 📡 Communication: {sender_type} → {receiver_type}")
+    if pair_key not in LIGAND_RECEPTOR_NETWORK:
+        return "Unknown interaction"
 
-    interactions_df = identify_cell_communication(adata, sender_type, receiver_type)
+    pair_info = LIGAND_RECEPTOR_NETWORK[pair_key]
+    ligand = pair_info["ligand"]
+    receptor = pair_info["receptor"]
+    target_genes = pair_info.get("target_genes", {})
+    context = pair_info.get("context", "Cell communication")
 
-    if interactions_df.empty:
-        st.info(f"No known interactions between {sender_type} and {receiver_type}")
+    # Get target gene descriptions
+    target_desc = ""
+    if target_genes:
+        top_targets = list(target_genes.items())[:2]
+        target_desc = " → ".join([f"**{gene}** ({desc})" for gene, desc in top_targets])
+
+    explanation = f"""
+    ### 📡 NicheNet Inference: Cluster {sender_id} → Cluster {receiver_id}
+
+    **Mechanism:**
+    - **Cluster {sender_id}** produces **{pair_info['ligand_full']}** (ligand)
+    - **Cluster {receiver_id}** expresses **{pair_info['receptor_full']}** (receptor)
+    - Ligand-receptor binding triggers signaling cascade
+
+    **Effect on Cluster {receiver_id}:**
+    Cluster {sender_id} may influence Cluster {receiver_id} through **{ligand}** signaling,
+    which would affect downstream gene expression including:
+    {target_desc if target_desc else "Multiple target genes"}
+
+    **Biological Context:**
+    {context}
+
+    **Predicted Outcomes:**
+    - Changes in cell state or behavior in {receiver_id}
+    - Potential upregulation of target genes in receiver cells
+    - Possible feedback regulation through downstream signals
+    """
+
+    return explanation
+
+
+def show_nichenet_communication_network(adata) -> None:
+    """
+    Display comprehensive NicheNet-style cell-cell communication network.
+    """
+    if "leiden" not in adata.obs.columns:
+        st.warning("Run clustering first to analyze cell-cell communication")
         return
 
-    st.markdown(f"**Found {len(interactions_df)} potential interactions:**")
+    st.markdown("## 📡 Cell-Cell Communication Network (NicheNet-inspired)")
 
-    # Display interactions with tooltips
-    for idx, row in interactions_df.iterrows():
-        with st.expander(f"🔗 {row['Pair']} — {row['Description']}", expanded=False):
-            col1, col2 = st.columns([2, 1])
+    # Identify senders and receivers
+    senders = infer_sender_clusters(adata, "leiden")
+    receivers = infer_receiver_clusters(adata, "leiden")
 
-            with col1:
-                st.markdown(f"""
-                **Ligand → Receptor**
-                - **{row['Ligand']}** ({row['Ligand Expr (Sender)']}) → **{row['Receptor']}** ({row['Receptor Expr (Receiver)']})
-                - Interaction Score: {row['Interaction Score']}
-                - {row['Description']}
-                """)
+    if not senders:
+        st.info("No clear sender cells detected. Try different resolution clustering.")
+        return
 
-                # Show biological context
-                pair_info = get_ligand_receptor_info(row['Pair'])
-                st.markdown(f"**Biological Context:** {pair_info.get('context', 'Cell communication')}")
+    if not receivers:
+        st.info("No clear receiver cells detected. Try different resolution clustering.")
+        return
 
-            with col2:
-                st.markdown("**Pathway Role:**")
-                pair_info = get_ligand_receptor_info(row['Pair'])
-                if "TNF" in row['Ligand'] or "TNF" in row['Receptor']:
-                    st.markdown("🛡️ Inflammation")
-                elif "IL" in row['Ligand'] or "IL" in row['Receptor']:
-                    st.markdown("🔄 Immune signaling")
-                elif "VEGF" in row['Ligand'] or "FLT" in row['Receptor']:
-                    st.markdown("🧬 Angiogenesis")
-                elif "FGF" in row['Ligand'] or "FGF" in row['Receptor']:
-                    st.markdown("📊 Growth signaling")
-                else:
-                    st.markdown("📡 Cell adhesion")
+    # Summary
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Sender Clusters", len(senders))
+    with col2:
+        st.metric("Receiver Clusters", len(receivers))
+    with col3:
+        st.metric("Possible Interactions", len(senders) * len(receivers))
+
+    st.divider()
+
+    # Interaction analysis
+    st.markdown("### Predicted Ligand-Receptor Interactions")
+
+    sender_options = {f"Cluster {cid} ({info['n_cells']} cells)": cid
+                     for cid, info in senders.items()}
+    receiver_options = {f"Cluster {cid} ({info['n_cells']} cells)": cid
+                       for cid, info in receivers.items()}
+
+    col1, col2 = st.columns(2)
+    with col1:
+        sender_display = st.selectbox("Sender Cluster", list(sender_options.keys()))
+        sender_id = sender_options[sender_display]
+
+    with col2:
+        receiver_display = st.selectbox("Receiver Cluster", list(receiver_options.keys()))
+        receiver_id = receiver_options[receiver_display]
+
+    if sender_id and receiver_id:
+        interactions = infer_cell_communication(adata, sender_id, receiver_id)
+
+        if not interactions.empty:
+            st.success(f"🔗 Found {len(interactions)} potential interaction(s)")
+
+            # Display each interaction with NicheNet explanation
+            for idx, row in interactions.iterrows():
+                pair_key = row["Pair"]
+
+                with st.expander(
+                    f"🧬 {pair_key} | Score: {row['Interaction Score']}",
+                    expanded=(idx == 0)
+                ):
+                    # NicheNet explanation
+                    explanation = generate_nichenet_explanation(
+                        sender_id, receiver_id, pair_key, adata
+                    )
+                    st.markdown(explanation)
+
+                    # Target genes
+                    targets = get_downstream_targets(pair_key)
+                    if targets:
+                        st.markdown("**Downstream Target Genes:**")
+                        for gene, function in targets.items():
+                            st.markdown(f"- **{gene}**: {function}")
+        else:
+            st.info("No interactions detected between selected clusters")

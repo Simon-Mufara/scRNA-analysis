@@ -282,4 +282,4 @@ with col_next2:
     """)
 
 # Navigation
-render_nav_buttons(8)
+render_nav_buttons(10)

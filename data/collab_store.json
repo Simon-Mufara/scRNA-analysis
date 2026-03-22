@@ -131,6 +131,14 @@
           "Diff. Expression"
         ],
         "completion": 5
+      },
+      {
+        "id": "9a27dae1-16f1-4f00-8ab0-6856587df754",
+        "timestamp": "2026-03-22 01:24 UTC",
+        "done_steps": [
+          "Upload"
+        ],
+        "completion": 1
       }
     ]
   },
@@ -307,6 +315,16 @@
       "details": {
         "report_id": "eda8b3d4-f5b6-4f14-9222-4a2597ce0762",
         "visibility": "public"
+      }
+    },
+    {
+      "id": "6fcfe982-92dc-460f-93f0-1e3e7b6a385d",
+      "timestamp": "2026-03-22 01:24 UTC",
+      "event_type": "private_learning_logged",
+      "actor": "analyst",
+      "team": "individual",
+      "details": {
+        "completion": 1
       }
     }
   ],

@@ -606,4 +606,4 @@ if submit_report_clicked:
     st.success(f"Report submitted ({rec['visibility']}) and audit logged.")
     capture_pipeline_training_record(user_name, user_team, report_payload)
 
-render_nav_buttons(9)
+render_nav_buttons(11)
