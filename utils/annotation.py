@@ -161,7 +161,7 @@ def train_reference_classifier(adata, label_col: str, n_pcs: int = 30, test_frac
         random_state=random_state,
         stratify=stratify_y,
     )
-    clf = LogisticRegression(max_iter=1200, multi_class="auto")
+    clf = LogisticRegression(max_iter=1200, multi_class="multinomial", solver="lbfgs")
     clf.fit(x_train, y_train)
     y_pred = clf.predict(x_test)
     prob = clf.predict_proba(x_test).max(axis=1)

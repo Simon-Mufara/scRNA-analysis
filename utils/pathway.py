@@ -52,7 +52,14 @@ def run_gsea_prerank(ranked_genes: pd.DataFrame, gene_sets: str = "KEGG_2021_Hum
     )
     if pre_res is None or getattr(pre_res, "res2d", None) is None:
         return pd.DataFrame()
-    out = pre_res.res2d.reset_index(drop=False).rename(columns={"index": "Term"})
+    out = pre_res.res2d.reset_index(drop=False)
+    # Handle both 'index' and existing 'Term' column cases
+    if "index" in out.columns and "Term" not in out.columns:
+        out = out.rename(columns={"index": "Term"})
+    elif "index" in out.columns:
+        out = out.drop("index", axis=1)
+    # Remove duplicate column occurrences (keep first)
+    out = out.loc[:, ~out.columns.duplicated(keep='first')]
     if "FDR q-val" in out.columns:
         out = out.sort_values("FDR q-val", ascending=True)
     return out.head(top_n)
