@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 from core.pipeline import get_ranked_genes_df, run_differential_expression
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance, PALETTE, PLOTLY_TEMPLATE
 from utils.interpretation import show_explanation_button, interpret_de_result, show_comprehensive_warnings
+from utils.export import export_to_excel, export_to_csv
 
 st.set_page_config(page_title="Differential Expression", layout="wide")
 inject_global_css()
@@ -211,17 +212,20 @@ export_df = display_df.copy()
 # Remove helper columns not useful for export
 export_df = export_df.drop(columns=["Significant"], errors="ignore")
 
-# ── Export as Excel (.xlsx) so column headers display correctly in Excel ────
-import io as _io
-xlsx_buf = _io.BytesIO()
-with pd.ExcelWriter(xlsx_buf, engine="openpyxl") as writer:
-    export_df.to_excel(writer, index=False, sheet_name=f"DE_Group_{selected_group}")
-    # Auto-size columns
-    ws = writer.sheets[f"DE_Group_{selected_group}"]
-    for col in ws.columns:
-        max_len = max(len(str(cell.value or "")) for cell in col)
-        ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 40)
-xlsx_bytes = xlsx_buf.getvalue()
+# Identify numeric columns for proper formatting
+numeric_cols = ["DE Score", "Log2 Fold Change", "P-value", "Adj. P-value (BH)"]
+numeric_cols = [col for col in numeric_cols if col in export_df.columns]
+
+# Export as Excel (.xlsx) with proper formatting
+xlsx_bytes = export_to_excel(
+    export_df,
+    sheet_name=f"DE_Group_{selected_group}",
+    title=f"Differential Expression Results",
+    numeric_cols=numeric_cols
+)
+
+# Export as CSV with proper column separation
+csv_bytes = export_to_csv(export_df, numeric_cols=numeric_cols)
 
 col_dl1, col_dl2 = st.columns(2)
 col_dl1.download_button(
@@ -231,8 +235,6 @@ col_dl1.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     type="primary",
 )
-# Also keep CSV as fallback
-csv_bytes = export_df.to_csv(index=False).encode("utf-8")
 col_dl2.download_button(
     "⬇️ Download DE Results (.csv)",
     data=csv_bytes,
@@ -240,4 +242,4 @@ col_dl2.download_button(
     mime="text/csv",
 )
 
-render_nav_buttons(7)
+render_nav_buttons(8)

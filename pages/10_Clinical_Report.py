@@ -7,7 +7,8 @@ import io
 import plotly.express as px
 import plotly.graph_objects as go
 
-from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance, PALETTE
+from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance
+from utils.export import create_analysis_report_pdf, export_to_csv
 from utils.auth import get_current_user
 from utils.collaboration import capture_pipeline_training_record, submit_clinical_report
 
@@ -266,8 +267,10 @@ if not ct_counts.empty or (pathway_df is not None and not pathway_df.empty):
         if not ct_counts.empty:
             ct_df = ct_counts.reset_index()
             ct_df.columns = ["Cell Type", "Count"]
+            # Define color palette for cell type pie chart
+            color_palette = ["#00D4FF", "#A855F7", "#FF6B6B", "#51CF66", "#FFD43B", "#FF8787", "#74C0FC", "#B197FC"]
             fig_ct = px.pie(ct_df, names="Cell Type", values="Count",
-                            color_discrete_sequence=PALETTE, hole=0.48,
+                            color_discrete_sequence=color_palette, hole=0.48,
                             template="plotly_dark", title="Cell Type Composition")
             fig_ct.update_layout(
                 paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
@@ -303,6 +306,19 @@ def build_pdf(report_date_str: str, analyst_name: str, project_name: str) -> byt
         from fpdf import FPDF
     except ImportError:
         return None
+
+    # Sanitize text for PDF compatibility
+    def sanitize_text(text):
+        """Replace special unicode characters with ASCII equivalents for PDF compatibility"""
+        if not text:
+            return text
+        # Replace em dashes, en dashes with regular hyphens
+        text = text.replace("—", "-").replace("–", "-")
+        # Replace other problematic unicode characters
+        text = text.replace(""", '"').replace(""", '"')  # Smart quotes
+        text = text.replace("'", "'").replace("'", "'")  # Smart apostrophes
+        return text
+
     FONT_R = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
     FONT_B = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
     font_family = "Helvetica"
@@ -336,6 +352,7 @@ def build_pdf(report_date_str: str, analyst_name: str, project_name: str) -> byt
     pdf.set_margins(14, 32, 14)
 
     def heading(text, rgb=(0, 212, 255)):
+        text = sanitize_text(text)
         pdf.set_fill_color(20, 24, 32)
         pdf.set_draw_color(*rgb)
         pdf.set_font(font_family, "B", 10)
@@ -344,6 +361,7 @@ def build_pdf(report_date_str: str, analyst_name: str, project_name: str) -> byt
         pdf.ln(2)
 
     def body(text, size=9):
+        text = sanitize_text(text)
         pdf.set_font(font_family, "", size)
         pdf.set_text_color(200, 210, 225)
         pdf.multi_cell(0, 5, text)
@@ -531,17 +549,37 @@ with dl1:
         file_name=f"scRNA_report_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
         mime="text/plain", use_container_width=True)
 with dl2:
-    pdf_bytes = build_pdf(report_date, analyst, project)
-    if pdf_bytes:
-        st.download_button("📕 PDF Report", data=pdf_bytes,
-            file_name=f"scRNA_clinical_report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-            mime="application/pdf", type="primary", use_container_width=True)
+    # Use improved PDF generation with proper formatting
+    try:
+        pdf_bytes = create_analysis_report_pdf(
+            adata,
+            title="scRNA-seq Clinical Report",
+            include_sections={
+                "summary": include_dataset_summary,
+                "qc": include_qc_metrics,
+                "clustering": True,
+                "annotation": include_cell_populations,
+            }
+        )
+        if pdf_bytes:
+            st.download_button("📕 PDF Report", data=pdf_bytes,
+                file_name=f"scRNA_clinical_report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                mime="application/pdf", type="primary", use_container_width=True)
+    except Exception as e:
+        st.warning(f"PDF generation note: {str(e)[:100]}")
+        # Fallback to text-based export
+        pdf_bytes = build_pdf(report_date, analyst, project)
+        if pdf_bytes:
+            st.download_button("📕 PDF Report (Text)", data=pdf_bytes,
+                file_name=f"scRNA_clinical_report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                mime="application/pdf", type="primary", use_container_width=True)
 with dl3:
     if adata is not None and "cell_type" in adata.obs.columns:
         ct_export = adata.obs["cell_type"].value_counts().reset_index()
         ct_export.columns = ["Cell Type", "Cell Count"]
         ct_export["Proportion (%)"] = (ct_export["Cell Count"] / adata.n_obs * 100).round(2)
-        st.download_button("📊 Cell Table (.csv)", data=ct_export.to_csv(index=False).encode(),
+        csv_bytes = export_to_csv(ct_export, numeric_cols=["Cell Count", "Proportion (%)"])
+        st.download_button("📊 Cell Table (.csv)", data=csv_bytes,
             file_name="cell_type_summary.csv", mime="text/csv", use_container_width=True)
 
 st.caption("For research use only. Not intended for clinical diagnosis.")
@@ -585,4 +623,4 @@ if submit_report_clicked:
     st.success(f"Report submitted ({rec['visibility']}) and audit logged.")
     capture_pipeline_training_record(user_name, user_team, report_payload)
 
-render_nav_buttons(9)
+render_nav_buttons(11)

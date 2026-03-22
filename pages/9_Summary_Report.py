@@ -8,6 +8,7 @@ from datetime import datetime
 
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons
 from utils.interpretation import show_explanation_button
+from utils.export import export_to_excel, export_to_csv
 
 st.set_page_config(page_title="Summary Report", layout="wide")
 inject_global_css()
@@ -131,19 +132,35 @@ if "rank_genes_groups" in adata.uns:
     st.markdown("## 🔬 Marker Gene Summary")
 
     rgg = adata.uns.get("rank_genes_groups", {})
-    key = rgg.get("names", {})
+    key = rgg.get("names", None)
 
-    if key:
+    # Check if key exists and is not empty (works with numpy arrays and dicts)
+    if key is not None and len(key) > 0:
         # Show top markers across all groups
         st.markdown("Top differentially expressed genes (by group):")
 
         marker_summary = []
-        for group in list(key.keys())[:5]:  # Show top 5 groups
-            if isinstance(key[group], dict):
-                genes = list(key[group].keys())[:3]
-            else:
-                genes = list(key[group])[:3]
-            marker_summary.append(f"- **{group}**: {', '.join(genes)}")
+
+        # Handle both dict-like and array-like structures
+        if isinstance(key, dict):
+            groups_to_show = list(key.keys())[:5]
+            for group in groups_to_show:
+                if isinstance(key[group], dict):
+                    genes = list(key[group].keys())[:3]
+                else:
+                    genes = list(key[group])[:3]
+                marker_summary.append(f"- **{group}**: {', '.join(str(g) for g in genes)}")
+        else:
+            # Handle numpy array structure from rank_genes_groups
+            try:
+                # For numpy structured arrays, iterate through field names
+                groups_to_show = list(key.dtype.names)[:5] if hasattr(key, 'dtype') else []
+                for group in groups_to_show:
+                    genes = list(key[group][:3])
+                    marker_summary.append(f"- **{group}**: {', '.join(str(g) for g in genes)}")
+            except (AttributeError, TypeError):
+                # Fallback: just show that data exists
+                marker_summary = ["Marker gene data available (complex format)"]
 
         st.markdown("\n".join(marker_summary))
 
@@ -235,32 +252,24 @@ summary_df = pd.DataFrame(summary_data)
 
 col_download1, col_download2 = st.columns(2)
 
-# CSV export
-csv = summary_df.to_csv(index=False).encode()
+# CSV export using proper formatting
+csv_bytes = export_to_csv(summary_df)
 col_download1.download_button(
     "⬇️ Download Summary (CSV)",
-    data=csv,
+    data=csv_bytes,
     file_name="analysis_summary.csv",
     mime="text/csv",
 )
 
-# Excel export
-import io as _io
-xlsx_buf = _io.BytesIO()
-with pd.ExcelWriter(xlsx_buf, engine="openpyxl") as writer:
-    summary_df.to_excel(writer, index=False, sheet_name="Summary")
-    if "leiden" in adata.obs.columns:
-        adata.obs["leiden"].value_counts().reset_index().to_excel(
-            writer, index=False, sheet_name="Cluster_Sizes"
-        )
-    if "cell_type" in adata.obs.columns:
-        adata.obs["cell_type"].value_counts().reset_index().to_excel(
-            writer, index=False, sheet_name="Cell_Types"
-        )
-
+# Excel export with sheet 1: Summary
+xlsx_bytes = export_to_excel(
+    summary_df,
+    sheet_name="Summary",
+    numeric_cols=[]
+)
 col_download2.download_button(
     "⬇️ Download Summary (Excel)",
-    data=xlsx_buf.getvalue(),
+    data=xlsx_bytes,
     file_name="analysis_summary.xlsx",
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 )
@@ -289,4 +298,4 @@ with col_next2:
     """)
 
 # Navigation
-render_nav_buttons(8)
+render_nav_buttons(10)

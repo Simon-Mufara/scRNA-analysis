@@ -264,7 +264,7 @@ def interpret_de_result(de_df: pd.DataFrame, comparison: str,
     Interpret differential expression results with biological context.
 
     Args:
-        de_df: DataFrame with DE results (must have 'names', 'logfoldchanges', 'pvals_adj')
+        de_df: DataFrame with DE results (can have 'names'/'Gene Symbol', 'logfoldchanges'/'Log2 Fold Change', etc.)
         comparison: Description of the comparison (e.g., "Cluster 0 vs Rest")
         top_n: Number of top genes to highlight
 
@@ -276,9 +276,18 @@ def interpret_de_result(de_df: pd.DataFrame, comparison: str,
 
     interpretation = f"### 🔬 Interpretation: {comparison}\n\n"
 
+    # Detect column names (flexible mapping)
+    lfc_col = "Log2 Fold Change" if "Log2 Fold Change" in de_df.columns else "logfoldchanges"
+    pval_col = "Adj. P-value (BH)" if "Adj. P-value (BH)" in de_df.columns else "pvals_adj"
+    gene_col = "Gene Symbol" if "Gene Symbol" in de_df.columns else "names"
+
+    # Check if columns exist
+    if lfc_col not in de_df.columns or pval_col not in de_df.columns:
+        return "❌ DataFrame missing required columns (Log2 Fold Change, Adj. P-value)"
+
     # Overall pattern
-    upregulated = (de_df["logfoldchanges"] > 0).sum()
-    downregulated = (de_df["logfoldchanges"] < 0).sum()
+    upregulated = (de_df[lfc_col] > 0).sum()
+    downregulated = (de_df[lfc_col] < 0).sum()
     total = len(de_df)
 
     interpretation += f"**Overall Pattern:** {upregulated} upregulated, {downregulated} downregulated genes\n\n"
@@ -286,11 +295,11 @@ def interpret_de_result(de_df: pd.DataFrame, comparison: str,
     # Top genes
     if len(de_df) > 0:
         interpretation += f"**Top {min(top_n, len(de_df))} Marker Genes:**\n"
-        top_genes = de_df.nlargest(top_n, "logfoldchanges") if upregulated > 0 else de_df.nsmallest(top_n, "logfoldchanges")
+        top_genes = de_df.nlargest(top_n, lfc_col) if upregulated > 0 else de_df.nsmallest(top_n, lfc_col)
         for idx, (_, row) in enumerate(top_genes.iterrows(), 1):
-            gene_name = row.get("names", f"Gene_{idx}")
-            lfc = row.get("logfoldchanges", 0)
-            pval = row.get("pvals_adj", 1.0)
+            gene_name = row.get(gene_col, f"Gene_{idx}")
+            lfc = row.get(lfc_col, 0)
+            pval = row.get(pval_col, 1.0)
 
             if lfc > 0:
                 direction = "⬆️ UP"
