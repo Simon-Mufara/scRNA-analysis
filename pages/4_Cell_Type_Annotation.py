@@ -10,7 +10,7 @@ from utils.annotation import (
     benchmark_annotation_methods, train_reference_classifier, predict_with_reference_classifier
 )
 from utils.visualization import umap_plot
-from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, PALETTE
+from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance, PALETTE
 from config import CELLTYPIST_MODEL
 from core.pipeline import get_ranked_genes_df
 
@@ -22,6 +22,7 @@ page_header(
     "🏷️", "Cell Type Annotation",
     "Identify and label cell populations using marker genes, scoring models, or CellTypist AI"
 )
+show_guidance("annotation")
 
 adata = st.session_state.get("adata")
 if adata is None:

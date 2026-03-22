@@ -5,7 +5,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from core.pipeline import get_ranked_genes_df, run_differential_expression
-from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, PALETTE, PLOTLY_TEMPLATE
+from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance, PALETTE, PLOTLY_TEMPLATE
 
 st.set_page_config(page_title="Differential Expression", layout="wide")
 inject_global_css()
@@ -15,6 +15,7 @@ page_header(
     "📈", "Differential Expression & Marker Gene Detection",
     "Rank genes that best distinguish each cluster or cell type"
 )
+show_guidance("de_analysis")
 
 adata = st.session_state.get("adata")
 if adata is None:

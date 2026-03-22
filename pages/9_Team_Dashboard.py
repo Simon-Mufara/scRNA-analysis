@@ -27,7 +27,7 @@ from utils.collaboration import (
     update_learning_record_status,
     validate_learning_records,
 )
-from utils.styles import inject_global_css, info_card, page_header, render_nav_buttons, render_sidebar
+from utils.styles import inject_global_css, info_card, page_header, render_nav_buttons, show_guidance, render_sidebar
 
 st.set_page_config(page_title="Team Dashboard", layout="wide")
 inject_global_css()

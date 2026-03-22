@@ -565,6 +565,12 @@ def render_sidebar():
         except Exception:
             pass
         st.rerun()
+
+    # Guided mode toggle
+    st.sidebar.markdown("---")
+    guided_mode = st.sidebar.toggle("🎓 Guided Mode", value=st.session_state.get("guided_mode", False))
+    st.session_state["guided_mode"] = guided_mode
+
     st.sidebar.progress(progress_pct / 100.0, text=f"Progress {progress_pct}%")
     with st.sidebar.expander("Debug Panel", expanded=False):
         loaded_size_mb = st.session_state.get("loaded_file_size_mb")
@@ -763,3 +769,67 @@ def render_nav_buttons(current_idx: int):
             if st.button(f"{next_icon} {next_label} →", key="nav_next", type="primary", use_container_width=True):
                 page_file = "app.py" if next_path == "app" else f"{next_path}.py"
                 st.switch_page(page_file)
+
+
+# ── Guided Mode Helpers ────────────────────────────────────────────────────
+GUIDANCE = {
+    "quality_control": {
+        "title": "🔬 Quality Control",
+        "what": "Filtering out low-quality cells that may skew analysis results.",
+        "why": "Low-quality cells (few genes, high contamination) introduce noise and reduce biological signal.",
+        "output": "A cleaned dataset with only high-quality cells ready for downstream analysis.",
+    },
+    "clustering": {
+        "title": "🧬 Clustering",
+        "what": "Grouping cells with similar gene expression profiles together.",
+        "why": "Cells with similar expression patterns likely represent the same cell type or state.",
+        "output": "Cell clusters shown in UMAP space - each cluster may represent a distinct cell population.",
+    },
+    "annotation": {
+        "title": "🏷️ Cell Type Annotation",
+        "what": "Identifying what cell types are present based on marker genes and expression patterns.",
+        "why": "Knowing cell types reveals the biological composition and helps interpret findings.",
+        "output": "Each cell labeled with its likely type (e.g., T cells, B cells, macrophages).",
+    },
+    "de_analysis": {
+        "title": "🔬 Differential Expression",
+        "what": "Finding genes that are expressed differently between cell clusters or conditions.",
+        "why": "DE genes reveal what makes each cell population unique and can identify therapeutic targets.",
+        "output": "List of significant genes ranked by effect size - key drivers of cell identity.",
+    },
+    "pathways": {
+        "title": "🔗 Pathway Enrichment",
+        "what": "Connecting DE genes to biological pathways and processes.",
+        "why": "Pathways show the biological mechanisms and processes affected in your data.",
+        "output": "Enriched pathways with p-values - the most relevant biological processes in your cells.",
+    },
+    "report": {
+        "title": "📄 Clinical Report",
+        "what": "Summarizing your entire analysis in a professional document.",
+        "why": "Reports communicate findings to collaborators and clinicians in a standardized format.",
+        "output": "A PDF report with figures, tables, and interpretations ready to share.",
+    },
+}
+
+
+def show_guidance(step: str) -> None:
+    """Display guided explanation for an analysis step."""
+    if not st.session_state.get("guided_mode", False):
+        return
+    
+    if step not in GUIDANCE:
+        return
+    
+    info = GUIDANCE[step]
+    with st.info(f"ℹ️ {info['title']}", icon="🎓"):
+        st.markdown(f"**What:** {info['what']}")
+        st.markdown(f"**Why:** {info['why']}")
+        st.markdown(f"**Output:** {info['output']}")
+
+
+def show_result_explanation(title: str, explanation: str) -> None:
+    """Display explanation for analysis results."""
+    if not st.session_state.get("guided_mode", False):
+        return
+    with st.success(f"✅ {title}", icon="🎓"):
+        st.markdown(explanation)

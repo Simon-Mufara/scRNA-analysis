@@ -4,7 +4,7 @@ import pandas as pd
 
 from core.clustering import run_clustering_step
 from utils.visualization import umap_plot
-from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, PALETTE, PLOTLY_TEMPLATE
+from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance, PALETTE, PLOTLY_TEMPLATE
 from config import N_TOP_GENES, N_PCS, N_NEIGHBORS, LEIDEN_RESOLUTION
 
 st.set_page_config(page_title="Clustering & UMAP", layout="wide")
@@ -17,6 +17,7 @@ with _cl_col:
         "📊", "Normalization, Dimensionality Reduction & Clustering",
         "Normalize → HVG selection → PCA → UMAP → Leiden community detection"
     )
+show_guidance("clustering")
 with _cl_img:
     st.markdown("""<div style="border-radius:12px;overflow:hidden;border:1px solid #21262D;height:95px;margin-top:4px;">
     <img src="https://images.unsplash.com/photo-1628595351029-c2bf17511435?w=400&q=80"

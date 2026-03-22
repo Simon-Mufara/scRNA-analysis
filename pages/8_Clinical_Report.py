@@ -7,7 +7,7 @@ import io
 import plotly.express as px
 import plotly.graph_objects as go
 
-from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, PALETTE
+from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance, PALETTE
 from utils.auth import get_current_user
 from utils.collaboration import capture_pipeline_training_record, submit_clinical_report
 
@@ -22,6 +22,7 @@ with _rpt_col:
         "📄", "Clinical Summary Report",
         "Auto-compiled research & clinical interpretation report with PDF export"
     )
+show_guidance("report")
 with _rpt_img:
     st.markdown("""<div style="border-radius:12px;overflow:hidden;border:1px solid #21262D;height:95px;margin-top:4px;">
     <img src="https://images.unsplash.com/photo-1576671081837-49000212a370?w=400&q=80"

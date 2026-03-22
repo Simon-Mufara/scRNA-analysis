@@ -5,7 +5,7 @@ import plotly.express as px
 
 from core.pipeline import build_prerank_input
 from utils.pathway import get_top_pathways, run_gsea_prerank
-from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, PLOTLY_TEMPLATE
+from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance, PLOTLY_TEMPLATE
 from config import PATHWAY_GENE_SETS
 
 st.set_page_config(page_title="Pathway Analysis", layout="wide")
@@ -15,7 +15,8 @@ adata = st.session_state.get("adata")
 
 page_header(
     "🧪", "Pathway Enrichment Analysis",
-    "Identify enriched biological pathways using Enrichr (KEGG, Reactome, GO, Hallmark)"
+    "Identify enriched biological pathways using Enrichr (KEGG, Reactome, GO, Hallmark)
+show_guidance("pathways")"
 )
 
 

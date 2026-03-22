@@ -5,7 +5,7 @@ import plotly.express as px
 
 from core.pipeline import generate_marker_dotplot
 from utils.visualization import gene_umap_plot
-from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, PALETTE, PLOTLY_TEMPLATE
+from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance, PALETTE, PLOTLY_TEMPLATE
 from config import CLINICAL_MARKERS
 
 st.set_page_config(page_title="Gene Explorer", layout="wide")

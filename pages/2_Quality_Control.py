@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 
 from core.qc import compute_qc_metrics, run_qc_filter, get_qc_stats
 from utils.visualization import violin_qc
-from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, PLOTLY_TEMPLATE
+from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance, PLOTLY_TEMPLATE
 from config import QC_MIN_GENES, QC_MAX_GENES, QC_MIN_CELLS, QC_MAX_MITO_PCT
 
 st.set_page_config(page_title="Quality Control", layout="wide")
@@ -19,6 +19,7 @@ with _qc_col:
         "🔬", "Quality Control",
         "Filter low-quality cells and genes before downstream analysis"
     )
+show_guidance("quality_control")
 with _qc_img:
     st.markdown("""<div style="border-radius:12px;overflow:hidden;border:1px solid #21262D;height:95px;margin-top:4px;">
     <img src="https://images.unsplash.com/photo-1559757175-5700dde675bc?w=400&q=80"

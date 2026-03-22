@@ -9,7 +9,7 @@ from anndata import AnnData
 from core.preprocessing import load_h5ad_safe as _load_h5ad_safe
 from core.preprocessing import load_demo_dataset
 from core.pipeline import load_dataset_by_format
-from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons
+from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance
 from utils.auth import get_current_user
 
 MAX_UPLOAD_MB = 100_000  # 100 GB limit for large HPC analysis
