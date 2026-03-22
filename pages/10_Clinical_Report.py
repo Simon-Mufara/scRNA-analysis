@@ -306,6 +306,19 @@ def build_pdf(report_date_str: str, analyst_name: str, project_name: str) -> byt
         from fpdf import FPDF
     except ImportError:
         return None
+
+    # Sanitize text for PDF compatibility
+    def sanitize_text(text):
+        """Replace special unicode characters with ASCII equivalents for PDF compatibility"""
+        if not text:
+            return text
+        # Replace em dashes, en dashes with regular hyphens
+        text = text.replace("—", "-").replace("–", "-")
+        # Replace other problematic unicode characters
+        text = text.replace(""", '"').replace(""", '"')  # Smart quotes
+        text = text.replace("'", "'").replace("'", "'")  # Smart apostrophes
+        return text
+
     FONT_R = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
     FONT_B = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
     font_family = "Helvetica"
@@ -339,6 +352,7 @@ def build_pdf(report_date_str: str, analyst_name: str, project_name: str) -> byt
     pdf.set_margins(14, 32, 14)
 
     def heading(text, rgb=(0, 212, 255)):
+        text = sanitize_text(text)
         pdf.set_fill_color(20, 24, 32)
         pdf.set_draw_color(*rgb)
         pdf.set_font(font_family, "B", 10)
@@ -347,6 +361,7 @@ def build_pdf(report_date_str: str, analyst_name: str, project_name: str) -> byt
         pdf.ln(2)
 
     def body(text, size=9):
+        text = sanitize_text(text)
         pdf.set_font(font_family, "", size)
         pdf.set_text_color(200, 210, 225)
         pdf.multi_cell(0, 5, text)
