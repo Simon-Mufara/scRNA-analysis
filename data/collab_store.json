@@ -169,6 +169,18 @@
           "Annotation"
         ],
         "completion": 4
+      },
+      {
+        "id": "d831cce0-c63a-49cf-8c76-b9925fbea4ce",
+        "timestamp": "2026-03-22 01:38 UTC",
+        "done_steps": [
+          "Upload",
+          "QC",
+          "Clustering",
+          "Annotation",
+          "Diff. Expression"
+        ],
+        "completion": 5
       }
     ]
   },
@@ -385,6 +397,16 @@
       "team": "individual",
       "details": {
         "completion": 4
+      }
+    },
+    {
+      "id": "848ff382-e6f6-49c1-9560-3f8fcfc8c536",
+      "timestamp": "2026-03-22 01:38 UTC",
+      "event_type": "private_learning_logged",
+      "actor": "analyst",
+      "team": "individual",
+      "details": {
+        "completion": 5
       }
     }
   ],
