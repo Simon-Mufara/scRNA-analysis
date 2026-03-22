@@ -267,8 +267,10 @@ if not ct_counts.empty or (pathway_df is not None and not pathway_df.empty):
         if not ct_counts.empty:
             ct_df = ct_counts.reset_index()
             ct_df.columns = ["Cell Type", "Count"]
+            # Define color palette for cell type pie chart
+            color_palette = ["#00D4FF", "#A855F7", "#FF6B6B", "#51CF66", "#FFD43B", "#FF8787", "#74C0FC", "#B197FC"]
             fig_ct = px.pie(ct_df, names="Cell Type", values="Count",
-                            color_discrete_sequence=PALETTE, hole=0.48,
+                            color_discrete_sequence=color_palette, hole=0.48,
                             template="plotly_dark", title="Cell Type Composition")
             fig_ct.update_layout(
                 paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
