@@ -17,7 +17,7 @@ GITHUB_LOGIN_URL = os.getenv("GITHUB_LOGIN_URL", "").strip()
 LOGIN_BG_PATH = Path(__file__).resolve().parents[1] / "assets" / "images" / "login_hero.svg"
 
 DEMO_USERS = {
-    "analyst": {"password": "demo123", "team": None, "role": "individual"},
+    "analyst": {"password": "demo123", "team": "Demo Team", "role": "individual"},
     "teamlead": {"password": "demo123", "team": "Oncology Team", "role": "team"},
     "member1": {"password": "demo123", "team": "Oncology Team", "role": "team"},
     "deptadmin": {"password": "demo123", "team": "Pathology Department", "role": "organization"},
