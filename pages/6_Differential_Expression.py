@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 
 from core.pipeline import get_ranked_genes_df, run_differential_expression
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance, PALETTE, PLOTLY_TEMPLATE
-from utils.interpretation import show_explanation_button, interpret_de_result
+from utils.interpretation import show_explanation_button, interpret_de_result, show_comprehensive_warnings
 
 st.set_page_config(page_title="Differential Expression", layout="wide")
 inject_global_css()
@@ -99,6 +99,11 @@ if "Log2 Fold Change" in display_df.columns:
     down = (display_df["Log2 Fold Change"] < 0).sum()
     m3.metric("Upregulated", f"{up:,}")
     m4.metric("Downregulated", f"{down:,}")
+
+# ── Quality Notes and Warnings ─────────────────────────────────────────────────
+show_comprehensive_warnings(adata, context="statistical")
+
+st.divider()
 
 # ── Table + Bar chart ────────────────────────────────────────────────────────
 col_tbl, col_bar = st.columns([3, 2])

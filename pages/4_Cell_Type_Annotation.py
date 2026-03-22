@@ -11,7 +11,7 @@ from utils.annotation import (
 )
 from utils.visualization import umap_plot
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance, PALETTE
-from utils.interpretation import show_explanation_button, interpret_cell_types
+from utils.interpretation import show_explanation_button, interpret_cell_types, show_comprehensive_warnings
 from config import CELLTYPIST_MODEL
 from core.pipeline import get_ranked_genes_df
 
@@ -479,6 +479,11 @@ Use alternatives for cross-validation when results are clinically sensitive.
     csv = counts.to_csv(index=False).encode()
     st.download_button("⬇️ Download Cell Type Summary (CSV)", data=csv,
                        file_name="cell_type_summary.csv", mime="text/csv")
+
+# ── Quality Notes and Warnings ─────────────────────────────────────────────────
+st.divider()
+st.markdown("### ⚠️ Annotation Quality Notes")
+show_comprehensive_warnings(adata, context="annotation")
 
 # ── Explanations ───────────────────────────────────────────────────────────────
 st.divider()

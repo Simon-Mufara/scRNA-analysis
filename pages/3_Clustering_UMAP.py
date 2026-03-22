@@ -5,7 +5,7 @@ import pandas as pd
 from core.clustering import run_clustering_step
 from utils.visualization import umap_plot
 from utils.styles import inject_global_css, page_header, render_sidebar, render_nav_buttons, show_guidance, PALETTE, PLOTLY_TEMPLATE
-from utils.interpretation import show_explanation_button, interpret_clusters, is_beginner_mode, show_mode_tip
+from utils.interpretation import show_explanation_button, interpret_clusters, is_beginner_mode, show_mode_tip, show_comprehensive_warnings
 from config import N_TOP_GENES, N_PCS, N_NEIGHBORS, LEIDEN_RESOLUTION
 
 st.set_page_config(page_title="Clustering & UMAP", layout="wide")
@@ -180,6 +180,11 @@ if "pca" in adata.uns and "variance_ratio" in adata.uns["pca"]:
                         line=dict(color="#FF6B6B", width=2))
     fig_pca.update_layout(paper_bgcolor="#0E1117", plot_bgcolor="#161B22")
     st.plotly_chart(fig_pca, use_container_width=True)
+
+# ── Quality Notes and Warnings ─────────────────────────────────────────────────
+st.divider()
+st.markdown("### ⚠️ Clustering Quality Notes")
+show_comprehensive_warnings(adata, context="clustering")
 
 # ── Explanations ───────────────────────────────────────────────────────────────
 st.divider()

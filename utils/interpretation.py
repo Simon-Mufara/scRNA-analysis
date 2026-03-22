@@ -462,7 +462,147 @@ def get_data_quality_warnings(adata) -> List[Tuple[str, str]]:
     return warnings
 
 
-# ── Display helpers ────────────────────────────────────────────────────────────
+def get_clustering_warnings(adata, n_clusters: int = None) -> List[Tuple[str, str]]:
+    """
+    Get context-aware warnings about clustering results.
+
+    Args:
+        adata: AnnData object with leiden clusters
+        n_clusters: Number of clusters (optional, will be computed if not provided)
+
+    Returns:
+        List of (warning_level, message) tuples
+    """
+    warnings = []
+
+    if n_clusters is None and "leiden" in adata.obs.columns:
+        n_clusters = adata.obs["leiden"].nunique()
+
+    if n_clusters is None:
+        return warnings
+
+    # Too few clusters
+    if n_clusters == 1:
+        warnings.append(("warning", "Only 1 cluster detected! Increase resolution or check data quality."))
+    elif n_clusters < 3:
+        warnings.append(("info", "Few clusters detected. May indicate uniform cell population or low resolution."))
+
+    # Too many clusters
+    elif n_clusters > 30:
+        warnings.append(("warning", f"Very high number of clusters ({n_clusters}). Consider lowering resolution to reduce fragmentation."))
+
+    # Check cluster sizes
+    if "leiden" in adata.obs.columns:
+        cluster_sizes = adata.obs["leiden"].value_counts()
+        min_size = cluster_sizes.min()
+        max_size = cluster_sizes.max()
+
+        if min_size < 3:
+            warnings.append(("warning", f"Smallest cluster has only {min_size} cells. May be noise or biologically irrelevant."))
+
+        if max_size / min_size > 100:
+            warnings.append(("info", f"Cluster sizes vary widely (1:{max_size/min_size:.0f}). May reflect true biology or technical bias."))
+
+    return warnings
+
+
+def get_annotation_warnings(adata) -> List[Tuple[str, str]]:
+    """
+    Get context-aware warnings about cell type annotations.
+
+    Args:
+        adata: AnnData object with cell type annotations
+
+    Returns:
+        List of (warning_level, message) tuples
+    """
+    warnings = []
+
+    if "cell_type" not in adata.obs.columns:
+        return warnings
+
+    # Check for unassigned cells
+    unassigned = adata.obs["cell_type"].isna().sum() + (adata.obs["cell_type"] == "Unassigned").sum()
+    if unassigned > 0:
+        pct = 100 * unassigned / len(adata)
+        if pct > 20:
+            warnings.append(("warning", f"{pct:.1f}% cells are unassigned. May need different annotation method."))
+        elif pct > 5:
+            warnings.append(("info", f"{pct:.1f}% cells are unassigned. Acceptable for high-confidence annotation."))
+
+    # Check for rare cell types
+    cell_type_counts = adata.obs["cell_type"].value_counts()
+    rare_types = (cell_type_counts < 10).sum()
+    if rare_types > 0:
+        warnings.append(("info", f"{rare_types} cell types have < 10 cells. May be rare populations or artifacts."))
+
+    # Check for ambiguous annotations
+    if any(adata.obs["cell_type"].astype(str).str.contains("Ambiguous")):
+        n_ambiguous = (adata.obs["cell_type"].astype(str).str.contains("Ambiguous")).sum()
+        warnings.append(("warning", f"{n_ambiguous} cells marked as ambiguous. Consider using consensus labels."))
+
+    return warnings
+
+
+def get_statistical_power_warnings(adata) -> List[Tuple[str, str]]:
+    """
+    Get warnings about statistical power based on dataset characteristics.
+
+    Args:
+        adata: AnnData object
+
+    Returns:
+        List of (warning_level, message) tuples
+    """
+    warnings = []
+
+    # Check for groups small enough to cause power issues
+    if "leiden" in adata.obs.columns:
+        cluster_sizes = adata.obs["leiden"].value_counts()
+        small_clusters = (cluster_sizes < 20).sum()
+        if small_clusters > 0:
+            warnings.append(("warning", f"{small_clusters} clusters have < 20 cells. Differential expression analysis may lack power."))
+
+    # Check for extreme imbalance
+    if "cell_type" in adata.obs.columns:
+        cell_type_counts = adata.obs["cell_type"].value_counts()
+        if cell_type_counts.max() / cell_type_counts.min() > 1000:
+            warnings.append(("warning", "Extreme cell type imbalance detected (>1000:1). May bias statistical results."))
+
+    return warnings
+
+
+def show_comprehensive_warnings(adata, context: str = "general") -> None:
+    """
+    Display all relevant warnings based on data and context.
+
+    Args:
+        adata: AnnData object
+        context: 'general', 'qc', 'clustering', 'annotation', 'statistical'
+    """
+    all_warnings = []
+
+    if context in ["general", "qc"]:
+        all_warnings.extend(get_data_quality_warnings(adata))
+
+    if context in ["general", "clustering"]:
+        all_warnings.extend(get_clustering_warnings(adata))
+
+    if context in ["general", "annotation"]:
+        all_warnings.extend(get_annotation_warnings(adata))
+
+    if context in ["general", "statistical"]:
+        all_warnings.extend(get_statistical_power_warnings(adata))
+
+    if all_warnings:
+        st.markdown("**⚠️ Data Quality Notes:**")
+        for level, message in all_warnings:
+            if level == "error":
+                st.error(f"🔴 {message}")
+            elif level == "warning":
+                st.warning(f"🟡 {message}")
+            else:
+                st.info(f"ℹ️ {message}")
 
 def show_explanation_button(result_type: str, data=None,
                           button_key: str = None, **kwargs) -> None:
@@ -485,12 +625,4 @@ def show_explanation_button(result_type: str, data=None,
 
 def show_data_quality_warnings(adata) -> None:
     """Display data quality warnings."""
-    warnings = get_data_quality_warnings(adata)
-
-    for level, message in warnings:
-        if level == "error":
-            st.error(f"🔴 {message}")
-        elif level == "warning":
-            st.warning(f"🟡 {message}")
-        else:
-            st.info(f"ℹ️ {message}")
+    show_comprehensive_warnings(adata, context="qc")
