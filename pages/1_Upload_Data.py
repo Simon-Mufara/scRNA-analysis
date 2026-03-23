@@ -316,10 +316,10 @@ if estimated_dense_gb > 8:
 tab_obs, tab_var, tab_uns = st.tabs(["Cell Metadata (obs)", "Gene Metadata (var)", "Dataset Info (uns)"])
 
 with tab_obs:
-    st.dataframe(adata.obs.head(20), use_container_width=True)
+    st.dataframe(adata.obs.head(20), width="stretch")
 
 with tab_var:
-    st.dataframe(adata.var.head(20), use_container_width=True)
+    st.dataframe(adata.var.head(20), width="stretch")
 
 with tab_uns:
     if adata.uns:

@@ -41,7 +41,7 @@ with tab_single:
                        "TP53", "MKI67", "BRCA1", "EGFR", "NKG7", "GZMB"]
         btn_cols = st.columns(4)
         for i, g in enumerate(quick_genes):
-            if btn_cols[i % 4].button(g, key=f"q_{g}", use_container_width=True):
+            if btn_cols[i % 4].button(g, key=f"q_{g}", width="stretch"):
                 gene = g
 
     if gene:
@@ -51,7 +51,7 @@ with tab_single:
                 fig = gene_umap_plot(adata, gene)
                 if fig:
                     fig.update_layout(paper_bgcolor="#0E1117", plot_bgcolor="#161B22", height=500)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
             with col_violin:
                 groupby = "leiden" if "leiden" in adata.obs.columns else None
                 if groupby:
@@ -76,7 +76,7 @@ with tab_single:
                         paper_bgcolor="#0E1117", plot_bgcolor="#161B22",
                         showlegend=False, height=500
                     )
-                    st.plotly_chart(fig_v, use_container_width=True)
+                    st.plotly_chart(fig_v, width="stretch")
 
             # Stats table
             expr = np.array(
@@ -135,7 +135,7 @@ with tab_panel:
                                 coloraxis_showscale=False,
                             )
                             fig.update_traces(marker=dict(size=2))
-                            st.plotly_chart(fig, use_container_width=True)
+                            st.plotly_chart(fig, width="stretch")
 
 # ── Violin plot ───────────────────────────────────────────────────────────────
 with tab_violin:
@@ -160,7 +160,7 @@ with tab_violin:
                         template=PLOTLY_TEMPLATE)
         fig.update_layout(paper_bgcolor="#0E1117", plot_bgcolor="#161B22",
                           showlegend=False, height=500)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     elif v_gene:
         st.warning(f"Gene `{v_gene}` not found.")
 
@@ -177,7 +177,7 @@ with tab_dotplot:
         present = [g for g in genes if g in adata.var_names]
         if present:
             fig = generate_marker_dotplot(adata, present, groupby=groupby, color_map="viridis")
-            st.pyplot(fig, use_container_width=True)
+            st.pyplot(fig, width="stretch")
             plt.close()
         else:
             st.warning(f"None of {genes} were found in this dataset.")

@@ -294,7 +294,7 @@ with right:
             file_name="SingleCell_Explorer_User_Guide.pdf",
             mime="application/pdf",
             type="primary",
-            use_container_width=True,
+            width="stretch",
         )
 
     st.markdown(

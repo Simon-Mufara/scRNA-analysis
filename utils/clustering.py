@@ -56,7 +56,7 @@ def run_clustering(adata, n_top_genes=N_TOP_GENES, n_pcs=N_PCS,
             pass
 
     n_pcs_actual = min(n_pcs, adata.n_vars - 1, adata.n_obs - 1)
-    sc.pp.pca(adata, n_comps=n_pcs_actual, use_highly_variable=True)
+    sc.pp.pca(adata, n_comps=n_pcs_actual, mask_var="highly_variable")
 
     n_neighbors_actual = min(n_neighbors, adata.n_obs - 1)
     method = (integration_method or "none").strip().lower()
@@ -79,6 +79,6 @@ def run_clustering(adata, n_top_genes=N_TOP_GENES, n_pcs=N_PCS,
         sc.pp.neighbors(adata, n_neighbors=n_neighbors_actual, n_pcs=n_pcs_actual)
 
     sc.tl.umap(adata)
-    sc.tl.leiden(adata, resolution=resolution)
+    sc.tl.leiden(adata, resolution=resolution, flavor='igraph', n_iterations=2)
 
     return adata

@@ -84,7 +84,7 @@ with fig_row1_c1:
     fig.add_vline(x=min_genes, line_dash="dash", line_color="#FF6B6B", annotation_text="min")
     fig.add_vline(x=max_genes, line_dash="dash", line_color="#FFD43B", annotation_text="max")
     fig.update_layout(paper_bgcolor="#0E1117", plot_bgcolor="#161B22")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 with fig_row1_c2:
     fig = px.histogram(adata.obs, x="total_counts", nbins=80,
@@ -93,7 +93,7 @@ with fig_row1_c2:
                        color_discrete_sequence=["#A855F7"],
                        template=PLOTLY_TEMPLATE)
     fig.update_layout(paper_bgcolor="#0E1117", plot_bgcolor="#161B22")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 with fig_row1_c3:
     if "pct_counts_mt" in adata.obs.columns:
@@ -105,7 +105,7 @@ with fig_row1_c3:
         fig.add_vline(x=max_mito, line_dash="dash", line_color="#FF6B6B",
                       annotation_text="threshold")
         fig.update_layout(paper_bgcolor="#0E1117", plot_bgcolor="#161B22")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 # Scatter: genes vs counts coloured by mito %
 if "pct_counts_mt" in adata.obs.columns:
@@ -120,7 +120,7 @@ if "pct_counts_mt" in adata.obs.columns:
     )
     fig_sc.update_traces(marker=dict(size=3))
     fig_sc.update_layout(paper_bgcolor="#0E1117", plot_bgcolor="#161B22")
-    st.plotly_chart(fig_sc, use_container_width=True)
+    st.plotly_chart(fig_sc, width="stretch")
 
 # ── Run button ───────────────────────────────────────────────────────────────
 st.divider()
@@ -164,7 +164,7 @@ if st.button("▶ Run Quality Control Filter", type="primary"):
     stats_df.columns = ["Metric", "Value"]
     stats_df["Value"] = stats_df["Value"].apply(lambda x: f"{x:,.1f}")
     import pandas as pd
-    st.dataframe(stats_df, use_container_width=True)
+    st.dataframe(stats_df, width="stretch")
 
     # Interpret the QC results
     st.divider()

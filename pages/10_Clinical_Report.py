@@ -279,7 +279,7 @@ if not ct_counts.empty or (pathway_df is not None and not pathway_df.empty):
                 legend=dict(font=dict(size=10), bgcolor="rgba(0,0,0,0)"),
             )
             fig_ct.update_traces(textposition="inside", textinfo="percent", textfont_size=11)
-            st.plotly_chart(fig_ct, use_container_width=True)
+            st.plotly_chart(fig_ct, width="stretch")
 
     with vc2:
         if pathway_df is not None and not pathway_df.empty and "Term" in pathway_df.columns and "Combined Score" in pathway_df.columns:
@@ -298,7 +298,7 @@ if not ct_counts.empty or (pathway_df is not None and not pathway_df.empty):
                 yaxis=dict(tickfont=dict(size=9)),
                 coloraxis_showscale=False,
             )
-            st.plotly_chart(fig_pw, use_container_width=True)
+            st.plotly_chart(fig_pw, width="stretch")
 
 # ── PDF builder ───────────────────────────────────────────────────────────────
 def build_pdf(report_date_str: str, analyst_name: str, project_name: str) -> bytes:
@@ -543,7 +543,7 @@ dl1, dl2, dl3 = st.columns(3)
 with dl1:
     st.download_button("📄 Text Report (.txt)", data=report_text.encode(),
         file_name=f"scRNA_report_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-        mime="text/plain", use_container_width=True)
+        mime="text/plain", width="stretch")
 with dl2:
     # Use improved PDF generation with proper formatting
     try:
@@ -560,7 +560,7 @@ with dl2:
         if pdf_bytes:
             st.download_button("📕 PDF Report", data=pdf_bytes,
                 file_name=f"scRNA_clinical_report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                mime="application/pdf", type="primary", use_container_width=True)
+                mime="application/pdf", type="primary", width="stretch")
     except Exception as e:
         st.warning(f"PDF generation note: {str(e)[:100]}")
         # Fallback to text-based export
@@ -568,7 +568,7 @@ with dl2:
         if pdf_bytes:
             st.download_button("📕 PDF Report (Text)", data=pdf_bytes,
                 file_name=f"scRNA_clinical_report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                mime="application/pdf", type="primary", use_container_width=True)
+                mime="application/pdf", type="primary", width="stretch")
 with dl3:
     if adata is not None and "cell_type" in adata.obs.columns:
         ct_export = adata.obs["cell_type"].value_counts().reset_index()
@@ -576,7 +576,7 @@ with dl3:
         ct_export["Proportion (%)"] = (ct_export["Cell Count"] / adata.n_obs * 100).round(2)
         csv_bytes = export_to_csv(ct_export, numeric_cols=["Cell Count", "Proportion (%)"])
         st.download_button("📊 Cell Table (.csv)", data=csv_bytes,
-            file_name="cell_type_summary.csv", mime="text/csv", use_container_width=True)
+            file_name="cell_type_summary.csv", mime="text/csv", width="stretch")
 
 st.caption("For research use only. Not intended for clinical diagnosis.")
 
@@ -584,7 +584,7 @@ st.divider()
 st.markdown("### 🚀 Submit Report")
 with st.form("submit_report_form", clear_on_submit=False):
     visibility = st.radio("Visibility", ["Team dashboard", "General dashboard"], horizontal=True)
-    submit_report_clicked = st.form_submit_button("Submit report to dashboard", type="primary", use_container_width=True)
+    submit_report_clicked = st.form_submit_button("Submit report to dashboard", type="primary", width="stretch")
 if submit_report_clicked:
     user_name = current_user.get("username") or "unknown"
     user_team = current_user.get("team") or "individual"

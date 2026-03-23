@@ -89,7 +89,7 @@ with tab_marker:
                 "Status": "✅ Available" if len(found) >= 2 else "⚠️ Insufficient"
             })
         cov_df = pd.DataFrame(cov_data)
-        st.dataframe(cov_df, use_container_width=True, height=300)
+        st.dataframe(cov_df, width="stretch", height=300)
 
     with col_b:
         available = sum(1 for d in cov_data if d["Found in Dataset"] >= 2)
@@ -173,13 +173,13 @@ with tab_marker:
                 paper_bgcolor="#0E1117",
                 plot_bgcolor="#161B22",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
     if "cell_type_consensus" in adata.obs.columns:
         st.markdown("#### Consensus Label Summary")
         consensus_counts = adata.obs["cell_type_consensus"].value_counts().reset_index()
         consensus_counts.columns = ["Consensus Label", "# Cells"]
-        st.dataframe(consensus_counts, use_container_width=True)
+        st.dataframe(consensus_counts, width="stretch")
         ambiguous_n = int((adata.obs["cell_type_consensus"].astype(str).str.startswith("Ambiguous")).sum())
         st.metric("Ambiguous Cells", f"{ambiguous_n:,}")
 
@@ -278,7 +278,7 @@ with tab_celltypist:
         fig.add_vline(x=0.5, line_dash="dash", line_color="#FF6B6B",
                       annotation_text="0.5 threshold")
         fig.update_layout(paper_bgcolor="#0E1117", plot_bgcolor="#161B22")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 # ──────────────────────────────────────────────────────────────────────────────
 # TAB 3 — Manual Mapping
@@ -367,7 +367,7 @@ with tab_validation:
                     if bench_df.empty:
                         st.warning("No comparable prediction columns available for benchmarking.")
                     else:
-                        st.dataframe(bench_df, use_container_width=True)
+                        st.dataframe(bench_df, width="stretch")
                         st.session_state["annotation_benchmark_df"] = bench_df
                 except Exception as e:
                     st.error(f"Benchmarking failed: {e}")
@@ -441,7 +441,7 @@ if "cell_type" in adata.obs.columns:
             paper_bgcolor="#0E1117", plot_bgcolor="#161B22",
             coloraxis_showscale=False,
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with col_chart2:
         fig = px.pie(
@@ -453,17 +453,17 @@ if "cell_type" in adata.obs.columns:
         )
         fig.update_layout(paper_bgcolor="#0E1117")
         fig.update_traces(textposition="inside", textinfo="percent+label")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     if "X_umap" in adata.obsm:
         st.markdown("#### UMAP — Cell Types")
         fig = umap_plot(adata, color="cell_type", title="UMAP — Cell Types")
         fig.update_traces(marker=dict(size=3, opacity=0.8))
         fig.update_layout(paper_bgcolor="#0E1117", plot_bgcolor="#161B22")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     st.markdown("#### Cell Type Table")
-    st.dataframe(counts, use_container_width=True)
+    st.dataframe(counts, width="stretch")
 
     st.markdown("#### Tooling Options (for broader workflows)")
     st.markdown(

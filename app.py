@@ -297,7 +297,7 @@ if adata is not None:
             )
             fig.update_traces(textposition="inside", textinfo="percent",
                               textfont_size=11)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         elif "leiden" in adata.obs.columns:
             cl_counts = adata.obs["leiden"].value_counts().reset_index()
             cl_counts.columns = ["Cluster", "Cells"]
@@ -309,7 +309,7 @@ if adata is not None:
                 height=300, title_font=dict(size=13, color="#8B949E"),
                 margin=dict(t=36, b=8, l=8, r=8)
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         else:
             st.info("Run clustering (Step 3) to see composition charts.")
 else:

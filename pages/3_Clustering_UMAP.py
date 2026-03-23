@@ -171,7 +171,7 @@ with col_ctrl:
         color_by = st.selectbox("Color by", color_options, index=color_options.index(st.session_state["umap_color_by"]) if st.session_state["umap_color_by"] in color_options else 0)
         pt_size = st.slider("Point size", 1, 8, int(st.session_state["umap_pt_size"]))
         pt_opacity = st.slider("Opacity", 0.1, 1.0, float(st.session_state["umap_pt_opacity"]), step=0.05)
-        apply_view = st.form_submit_button("Apply view", use_container_width=True)
+        apply_view = st.form_submit_button("Apply view", width="stretch")
     if apply_view:
         st.session_state["umap_color_by"] = color_by
         st.session_state["umap_pt_size"] = pt_size
@@ -184,7 +184,7 @@ with col_ctrl:
     cc = adata.obs["leiden"].value_counts().reset_index()
     cc.columns = ["Cluster", "Cells"]
     cc["Pct"] = (cc["Cells"] / adata.n_obs * 100).round(1)
-    st.dataframe(cc, use_container_width=True, height=260)
+    st.dataframe(cc, width="stretch", height=260)
 
 with col_umap:
     fig = umap_plot(adata, color=st.session_state["umap_color_by"],
@@ -198,7 +198,7 @@ with col_umap:
             font=dict(size=10), itemsizing="constant"
         )
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 # ── PCA variance explained ───────────────────────────────────────────────────
 if "pca" in adata.uns and "variance_ratio" in adata.uns["pca"]:
@@ -218,7 +218,7 @@ if "pca" in adata.uns and "variance_ratio" in adata.uns["pca"]:
                         mode="lines+markers", name="Cumulative",
                         line=dict(color="#FF6B6B", width=2))
     fig_pca.update_layout(paper_bgcolor="#0E1117", plot_bgcolor="#161B22")
-    st.plotly_chart(fig_pca, use_container_width=True)
+    st.plotly_chart(fig_pca, width="stretch")
 
 # ── Quality Notes and Warnings ─────────────────────────────────────────────────
 st.divider()

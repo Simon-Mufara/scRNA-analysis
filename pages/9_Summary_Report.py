@@ -93,7 +93,7 @@ if "leiden" in adata.obs.columns:
             color_continuous_scale="Blues",
         )
         fig.update_layout(paper_bgcolor="#0E1117", plot_bgcolor="#161B22")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with col_cluster_stats:
         st.markdown("**Cluster Statistics:**")
@@ -118,7 +118,7 @@ if "cell_type" in adata.obs.columns:
             title="Cell Type Distribution",
         )
         fig.update_layout(paper_bgcolor="#0E1117")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with col_celltype_list:
         st.markdown("**Cell Type Details:**")

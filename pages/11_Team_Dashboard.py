@@ -84,7 +84,7 @@ with st.form("shared_analysis_sync_form", clear_on_submit=False):
     sync_genes = st.text_input("Selected genes (comma-separated)", placeholder="GAPDH, CD3E")
     sync_resolution = st.text_input("Clustering resolution", value="0.8")
     sync_colour = st.text_input("Colour by", value="cell_type")
-    sync_submit = st.form_submit_button("Share my current view", type="primary", use_container_width=True)
+    sync_submit = st.form_submit_button("Share my current view", type="primary", width="stretch")
 if sync_submit:
     payload = {
         "page": sync_page,
@@ -129,14 +129,14 @@ with left:
                 st.write(memory.get("preview") or "No preview text.")
                 c1, c2 = st.columns(2)
                 with c1:
-                    if st.button("Delete", key=f"del_{memory['id']}", use_container_width=True):
+                    if st.button("Delete", key=f"del_{memory['id']}", width="stretch"):
                         delete_user_memory(username, memory["id"])
                         st.rerun()
                 with c2:
                     if st.button(
                         "Share with Team",
                         key=f"share_{memory['id']}",
-                        use_container_width=True,
+                        width="stretch",
                         disabled=not bool(team),
                     ):
                         share_user_memory(username, memory["id"], team)
@@ -147,7 +147,7 @@ with left:
 
     st.markdown("### 📊 Shared Analysis Snapshots")
     if snapshots:
-        st.dataframe(pd.DataFrame(snapshots[::-1]), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(snapshots[::-1]), width="stretch", hide_index=True)
     else:
         st.info("No shared snapshots yet. Use the sidebar button to share your current analysis state.")
 
@@ -158,7 +158,7 @@ with left:
         ann_x = a1.number_input("X coordinate", value=0.0, step=0.1)
         ann_y = a2.number_input("Y coordinate", value=0.0, step=0.1)
         ann_comment = st.text_area("Comment", height=80, placeholder="Why this region or cluster matters.")
-        ann_submit = st.form_submit_button("Pin annotation", use_container_width=True)
+        ann_submit = st.form_submit_button("Pin annotation", width="stretch")
     if ann_submit:
         try:
             add_plot_annotation(username, team, ann_plot, ann_x, ann_y, ann_comment)
@@ -168,7 +168,7 @@ with left:
             st.error(str(exc))
     annotations = get_plot_annotations(team, plot_type="all")
     if annotations:
-        st.dataframe(pd.DataFrame(annotations[::-1]), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(annotations[::-1]), width="stretch", hide_index=True)
     else:
         st.info("No plot annotations yet.")
 
@@ -190,7 +190,7 @@ with left:
                     "de_group": rpt.get("filters_used", {}).get("de_group", ""),
                 }
             )
-        st.dataframe(pd.DataFrame(team_report_rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(team_report_rows), width="stretch", hide_index=True)
     else:
         st.info("No team-submitted reports yet.")
 
@@ -212,21 +212,21 @@ with left:
                 }
             )
         public_df = pd.DataFrame(public_rows)
-        st.dataframe(public_df, use_container_width=True, hide_index=True)
+        st.dataframe(public_df, width="stretch", hide_index=True)
         p1, p2 = st.columns(2)
         p1.download_button(
             "Download general reports CSV",
             data=public_df.to_csv(index=False).encode("utf-8"),
             file_name="general_viewership_reports.csv",
             mime="text/csv",
-            use_container_width=True,
+            width="stretch",
         )
         p2.download_button(
             "Download general reports JSON",
             data=public_df.to_json(orient="records", indent=2),
             file_name="general_viewership_reports.json",
             mime="application/json",
-            use_container_width=True,
+            width="stretch",
         )
     else:
         st.info("No general-viewership reports yet.")
@@ -234,7 +234,7 @@ with left:
 with right:
     st.markdown("### 👥 Team Shared Feed")
     if team_feed:
-        st.dataframe(pd.DataFrame(team_feed[::-1]), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(team_feed[::-1]), width="stretch", hide_index=True)
     elif team:
         st.info("No team memories shared yet.")
     else:
@@ -285,7 +285,7 @@ with right:
         reg_context = st.text_input("Clinical context", placeholder="NSCLC pre-treatment biopsy")
         reg_outcome = st.selectbox("Outcome label", ["positive", "negative", "neutral", "undetermined"])
         reg_evidence = st.selectbox("Evidence level", ["validated", "replicated", "exploratory"])
-        publish_clicked = st.form_submit_button("Publish to department registry", type="primary", use_container_width=True)
+        publish_clicked = st.form_submit_button("Publish to department registry", type="primary", width="stretch")
     if publish_clicked:
         if not has_role(user_role, "organization"):
             st.error("Publishing to department registry requires organization role access.")
@@ -311,7 +311,7 @@ with right:
 
     if filtered_records:
         dept_df = pd.DataFrame(filtered_records[::-1])
-        st.dataframe(dept_df, use_container_width=True, hide_index=True)
+        st.dataframe(dept_df, width="stretch", hide_index=True)
         csv_bytes = dept_df.to_csv(index=False).encode("utf-8")
         b1, b2 = st.columns(2)
         b1.download_button(
@@ -319,14 +319,14 @@ with right:
             data=csv_bytes,
             file_name="department_learning_registry.csv",
             mime="text/csv",
-            use_container_width=True,
+            width="stretch",
         )
         b2.download_button(
             "Export JSON",
             data=dept_df.to_json(orient="records", indent=2),
             file_name="department_learning_registry.json",
             mime="application/json",
-            use_container_width=True,
+            width="stretch",
         )
     else:
         st.info("No records match current filters.")
@@ -336,7 +336,7 @@ with right:
     if not review_df.empty:
         st.dataframe(
             review_df[["id", "title", "owner", "signal_type", "review_status", "reviewed_by", "reviewed_at"]],
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
         if has_role(user_role, "organization"):
@@ -353,7 +353,7 @@ with right:
                 )
                 decision = st.selectbox("Decision", ["approved", "rejected", "needs_revision"])
                 review_comment = st.text_area("Reviewer comment", height=80, placeholder="Optional rationale")
-                review_submit = st.form_submit_button("Apply review decision", use_container_width=True)
+                review_submit = st.form_submit_button("Apply review decision", width="stretch")
             if review_submit and options:
                 try:
                     update_learning_record_status(
@@ -385,14 +385,14 @@ with right:
     q3.metric("Rejected", quality["invalid"])
     if quality["rejected"]:
         with st.expander("View rejected records", expanded=False):
-            st.dataframe(pd.DataFrame(quality["rejected"]), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(quality["rejected"]), width="stretch", hide_index=True)
     if quality["curated"]:
         st.download_button(
             "Export Model JSONL",
             data=build_model_jsonl(quality["curated"]),
             file_name="department_model_dataset.jsonl",
             mime="application/json",
-            use_container_width=True,
+            width="stretch",
         )
         st.caption("JSONL export uses structured input-target pairs for supervised model training.")
     else:
@@ -407,21 +407,21 @@ with right:
         st.caption("Top events: " + ", ".join(f"{k}:{v}" for k, v in sorted(audit_summary["event_counts"].items())))
     if events:
         audit_df = pd.DataFrame(events[::-1])
-        st.dataframe(audit_df, use_container_width=True, hide_index=True)
+        st.dataframe(audit_df, width="stretch", hide_index=True)
         a1, a2 = st.columns(2)
         a1.download_button(
             "Export Audit CSV",
             data=audit_df.to_csv(index=False).encode("utf-8"),
             file_name="team_audit_log.csv",
             mime="text/csv",
-            use_container_width=True,
+            width="stretch",
         )
         a2.download_button(
             "Export Audit JSON",
             data=audit_df.to_json(orient="records", indent=2),
             file_name="team_audit_log.json",
             mime="application/json",
-            use_container_width=True,
+            width="stretch",
         )
     else:
         st.info("No audit events yet for current scope.")

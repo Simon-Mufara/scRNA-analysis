@@ -617,7 +617,7 @@ def render_sidebar():
         unsafe_allow_html=True,
     )
     with st.sidebar.expander("Account settings", expanded=False):
-        if st.button("Save login details on this device", key="save_login_details_btn", use_container_width=True):
+        if st.button("Save login details on this device", key="save_login_details_btn", width="stretch"):
             try:
                 st.query_params["remember_user"] = user["username"] or ""
                 st.query_params["remember_mode"] = "Team" if user.get("team") else "Individual"
@@ -639,7 +639,7 @@ def render_sidebar():
                 delete_submit = st.form_submit_button(
                     "Delete my account",
                     type="secondary",
-                    use_container_width=True,
+                    width="stretch",
                 )
             if delete_submit:
                 if (confirm_user or "").strip().lower() != (user.get("username") or "").strip().lower():
@@ -665,13 +665,13 @@ def render_sidebar():
             st.text_input("Your Name", key="workspace_owner")
             shared_count = len(get_team_snapshots(user["team"]))
             st.caption(f"Shared snapshots: {shared_count}")
-            if st.button("Share current analysis snapshot", key="share_snapshot", use_container_width=True):
+            if st.button("Share current analysis snapshot", key="share_snapshot", width="stretch"):
                 if st.session_state.get("adata") is None:
                     st.warning("Load and analyze a dataset before sharing a snapshot.")
                 else:
                     snapshot = add_shared_snapshot()
                     st.success(f"Snapshot shared at {snapshot['timestamp']}.")
-    if st.sidebar.button("Logout", key="logout_btn", use_container_width=True):
+    if st.sidebar.button("Logout", key="logout_btn", width="stretch"):
         logout_user()
         st.switch_page("app.py")
 
@@ -761,7 +761,7 @@ def render_nav_buttons(current_idx: int):
     if prev_idx is not None:
         prev_path, prev_label, prev_icon = PAGES[prev_idx]
         with col_prev:
-            if st.button(f"← {prev_icon} {prev_label}", key="nav_prev", use_container_width=True):
+            if st.button(f"← {prev_icon} {prev_label}", key="nav_prev", width="stretch"):
                 page_file = "app.py" if prev_path == "app" else f"{prev_path}.py"
                 st.switch_page(page_file)
 
@@ -783,7 +783,7 @@ def render_nav_buttons(current_idx: int):
     if next_idx is not None:
         next_path, next_label, next_icon = PAGES[next_idx]
         with col_next:
-            if st.button(f"{next_icon} {next_label} →", key="nav_next", type="primary", use_container_width=True):
+            if st.button(f"{next_icon} {next_label} →", key="nav_next", type="primary", width="stretch"):
                 page_file = "app.py" if next_path == "app" else f"{next_path}.py"
                 st.switch_page(page_file)
 

@@ -108,7 +108,7 @@ with st.expander("View all curated ligand-receptor pairs", expanded=False):
         })
 
     pairs_df = pd.DataFrame(pair_list)
-    st.dataframe(pairs_df, use_container_width=True)
+    st.dataframe(pairs_df, width="stretch")
 
     st.caption("""
     **Column Descriptions:**
@@ -138,7 +138,7 @@ summary_data = {
 }
 
 summary_df = pd.DataFrame(summary_data)
-st.dataframe(summary_df, use_container_width=True)
+st.dataframe(summary_df, width="stretch")
 
 # ── Sender & Receiver Details ──────────────────────────────────────────────────
 
@@ -157,7 +157,7 @@ if senders:
                 }
                 for ligand, expr in info['ligands'].items()
             ])
-            st.dataframe(ligand_df, use_container_width=True)
+            st.dataframe(ligand_df, width="stretch")
 
             # Show prioritized ligands
             st.markdown("**Ligand Prioritization** (ranked by expression & cluster specificity):")
@@ -168,7 +168,7 @@ if senders:
                     {"Rank": i+1, "Ligand": lig, "Priority Score": f"{score:.3f}"}
                     for i, (lig, score) in enumerate(priorities[:5])  # Top 5
                 ])
-                st.dataframe(priority_df, use_container_width=True)
+                st.dataframe(priority_df, width="stretch")
                 st.caption("Priority scores combine mean expression, percentage expressed, and cluster-specificity variance.")
             else:
                 st.info("No prioritized ligands detected for this cluster.")
@@ -188,7 +188,7 @@ if receivers:
                 }
                 for receptor, expr in info['receptors'].items()
             ])
-            st.dataframe(receptor_df, use_container_width=True)
+            st.dataframe(receptor_df, width="stretch")
 
 # ── Next Steps ─────────────────────────────────────────────────────────────────
 

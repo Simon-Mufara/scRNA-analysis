@@ -42,7 +42,7 @@ with tab_fastq:
         rows = []
         for f in fastqs:
             rows.append({"file": f.name, "size_mb": round(f.size / (1024 ** 2), 2)})
-        st.dataframe(pd.DataFrame(rows), use_container_width=True)
+        st.dataframe(pd.DataFrame(rows), width="stretch")
     checklist = {
         "FASTQ naming convention checked": st.checkbox("FASTQ naming convention checked"),
         "Sample sheet available": st.checkbox("Sample sheet available"),
@@ -129,7 +129,7 @@ with tab_validate:
                     adata = load_h5ad_safe(val_path)
                 checks = validate_prepared_adata(adata)
                 rows = [{"check": k, "status": "PASS" if v else "FAIL"} for k, v in checks.items()]
-                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
                 if all(checks.values()):
                     st.success("Prepared file is consistent and ready for Upload Data step.")
                 else:

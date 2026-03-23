@@ -190,7 +190,7 @@ with st.expander("Create backend user account", expanded=False):
         new_verified = st.checkbox("Mark email as verified", value=True)
         new_active = st.checkbox("Active account", value=True)
         send_verify_mail = st.checkbox("Send verification email now (requires SMTP)", value=False)
-        create_submit = st.form_submit_button("Create account", type="primary", use_container_width=True)
+        create_submit = st.form_submit_button("Create account", type="primary", width="stretch")
     st.caption("Requirements: unique username/email and password with at least 8 characters.")
     if create_submit:
         ok, err = admin_create_user_account(
@@ -245,11 +245,11 @@ with st.expander("Create backend user account", expanded=False):
 
 c1, c2 = st.columns(2)
 with c1:
-    if st.button("Migrate current JSON data to backend", use_container_width=True):
+    if st.button("Migrate current JSON data to backend", width="stretch"):
         result = migrate_collab_store()
         st.success(f"Migrated {result['records']} records and {result['events']} audit events.")
 with c2:
-    if st.button("Logout", use_container_width=True):
+    if st.button("Logout", width="stretch"):
         st.session_state["admin_auth"] = False
         st.session_state["admin_user"] = ""
         st.rerun()
@@ -278,9 +278,9 @@ with st.expander("Backend configuration (SMTP + Entra)", expanded=False):
             value=get_system_setting("auth.session_timeout_minutes", "720"),
             help="Inactive sessions older than this are logged out automatically.",
         )
-        save_smtp = st.form_submit_button("Save SMTP settings", use_container_width=True)
+        save_smtp = st.form_submit_button("Save SMTP settings", width="stretch")
         test_to = st.text_input("SMTP test recipient email")
-        test_smtp = st.form_submit_button("Send test email", use_container_width=True)
+        test_smtp = st.form_submit_button("Send test email", width="stretch")
     if save_smtp:
         set_system_setting("mail.smtp_host", smtp_host.strip())
         set_system_setting("mail.smtp_port", smtp_port.strip())
@@ -343,7 +343,7 @@ with st.expander("Backend configuration (SMTP + Entra)", expanded=False):
                 {"check": "App public URL", "value": diag["app_public_url"] or "(optional)"},
             ]
         ),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
     st.caption(f"Database path: {Path('data/platform_backend.db').resolve()}")
@@ -359,7 +359,7 @@ with st.expander("Backend configuration (SMTP + Entra)", expanded=False):
             value=get_system_setting("entra.entra_team_group_map", "{}"),
             height=120,
         )
-        save_entra = st.form_submit_button("Save Entra settings", use_container_width=True)
+        save_entra = st.form_submit_button("Save Entra settings", width="stretch")
     if save_entra:
         set_system_setting("entra.entra_tenant_id", tenant_id.strip())
         set_system_setting("entra.entra_client_id", client_id.strip())
@@ -377,7 +377,7 @@ with st.expander("Backend configuration (SMTP + Entra)", expanded=False):
             if any(x in row["key"] for x in ("password", "secret")):
                 value = "********"
             display_rows.append({"key": row["key"], "value": value, "updated_at": row["updated_at"]})
-        st.dataframe(pd.DataFrame(display_rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(display_rows), width="stretch", hide_index=True)
 
 overview = backend_overview()
 st.divider()
@@ -388,16 +388,16 @@ m3.metric("Department Records", overview["record_count"])
 m4.metric("Active Sessions", overview["active_sessions"])
 
 st.markdown("### Users")
-st.dataframe(pd.DataFrame(overview["users"]), use_container_width=True, hide_index=True)
+st.dataframe(pd.DataFrame(overview["users"]), width="stretch", hide_index=True)
 
 st.markdown("### Memberships")
-st.dataframe(pd.DataFrame(overview["memberships"]), use_container_width=True, hide_index=True)
+st.dataframe(pd.DataFrame(overview["memberships"]), width="stretch", hide_index=True)
 
 st.markdown("### User Sessions")
-st.dataframe(pd.DataFrame(overview["sessions"]), use_container_width=True, hide_index=True)
+st.dataframe(pd.DataFrame(overview["sessions"]), width="stretch", hide_index=True)
 
 audit_rows = fetch_rows(
     "SELECT id, event_type, actor, team, created_at FROM audit_events ORDER BY created_at DESC LIMIT 200"
 )
 st.markdown("### Recent Audit Events")
-st.dataframe(pd.DataFrame(audit_rows), use_container_width=True, hide_index=True)
+st.dataframe(pd.DataFrame(audit_rows), width="stretch", hide_index=True)

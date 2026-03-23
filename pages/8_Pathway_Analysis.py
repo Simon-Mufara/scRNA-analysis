@@ -34,7 +34,7 @@ def show_pathway_results(df: pd.DataFrame):
     m3.metric("Top pathway", top_term[:35] + "..." if len(top_term) > 35 else top_term)
 
     st.markdown("#### 📊 Top Enriched Pathways")
-    st.dataframe(df[display_cols].head(30), use_container_width=True, height=350)
+    st.dataframe(df[display_cols].head(30), width="stretch", height=350)
 
     if "Term" in df.columns and "Combined Score" in df.columns and len(df) > 0:
         top = df.head(20).copy()
@@ -52,7 +52,7 @@ def show_pathway_results(df: pd.DataFrame):
             height=550,
             coloraxis_colorbar=dict(title="-log₁₀(adj.p)"),
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         # Dot plot: -log10 p vs combined score
         if "Overlap" in df.columns:
@@ -73,7 +73,7 @@ def show_pathway_results(df: pd.DataFrame):
                 template=PLOTLY_TEMPLATE,
             )
             fig2.update_layout(paper_bgcolor="#0E1117", plot_bgcolor="#161B22", height=400)
-            st.plotly_chart(fig2, use_container_width=True)
+            st.plotly_chart(fig2, width="stretch")
 
     csv = export_to_csv(df, numeric_cols=None)
 
@@ -192,7 +192,7 @@ with tab_compare:
                     with st.expander(f"📚 {lib} — {len(df)} significant pathways"):
                         if not df.empty and "Term" in df.columns:
                             st.dataframe(df[["Term", "Adjusted P-value", "Combined Score"]].head(10),
-                                         use_container_width=True)
+                                         width="stretch")
 
 with tab_prerank:
     st.markdown("Run pre-ranked pathway analysis (fgsea-like) using DE rank statistics.")
@@ -211,7 +211,7 @@ with tab_prerank:
                     st.warning("No pathway results returned from prerank.")
                 else:
                     display_cols = [c for c in ["Term", "NES", "NOM p-val", "FDR q-val"] if c in out.columns]
-                    st.dataframe(out[display_cols] if display_cols else out, use_container_width=True)
+                    st.dataframe(out[display_cols] if display_cols else out, width="stretch")
             except Exception as e:
                 st.error(f"Pre-ranked GSEA failed: {e}")
 

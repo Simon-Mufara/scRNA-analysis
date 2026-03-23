@@ -119,7 +119,7 @@ with col_tbl:
     for col in ["P-value", "Adj. P-value (BH)"]:
         if col in fmt_df.columns:
             fmt_df[col] = fmt_df[col].apply(lambda x: f"{x:.2e}")
-    st.dataframe(fmt_df, use_container_width=True, height=450)
+    st.dataframe(fmt_df, width="stretch", height=450)
 
 with col_bar:
     top20 = display_df.head(20)
@@ -146,7 +146,7 @@ with col_bar:
         yaxis={"categoryorder": "total ascending"},
         paper_bgcolor="#0E1117", plot_bgcolor="#161B22", height=450
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 # ── Volcano plot ─────────────────────────────────────────────────────────────
 if "Log2 Fold Change" in display_df.columns and "Adj. P-value (BH)" in display_df.columns:
@@ -186,7 +186,7 @@ if "Log2 Fold Change" in display_df.columns and "Adj. P-value (BH)" in display_d
     fig_v.add_vline(x=-0.5, line_dash="dash", line_color="#8B949E")
     fig_v.update_layout(paper_bgcolor="#0E1117", plot_bgcolor="#161B22", height=500)
     fig_v.update_traces(marker=dict(size=4, opacity=0.7))
-    st.plotly_chart(fig_v, use_container_width=True)
+    st.plotly_chart(fig_v, width="stretch")
 
 # ── Interpretation ─────────────────────────────────────────────────────────────
 st.divider()

@@ -316,7 +316,7 @@ def render_login_gate():
         st.link_button(
             "Sign in with Microsoft Entra ID",
             url=build_entra_login_url(st.session_state["entra_login_state"]),
-            use_container_width=True,
+            width="stretch",
         )
         st.caption("Entra sign-in uses OIDC + MFA policy from your tenant.")
     c_google, c_github = st.columns(2)
@@ -334,7 +334,7 @@ def render_login_gate():
                 unsafe_allow_html=True,
             )
         else:
-            st.button("Continue with Google", disabled=True, use_container_width=True, help="Set GOOGLE_LOGIN_URL to enable.")
+            st.button("Continue with Google", disabled=True, width="stretch", help="Set GOOGLE_LOGIN_URL to enable.")
     with c_github:
         if GITHUB_LOGIN_URL:
             st.markdown(
@@ -349,7 +349,7 @@ def render_login_gate():
                 unsafe_allow_html=True,
             )
         else:
-            st.button("Continue with GitHub", disabled=True, use_container_width=True, help="Set GITHUB_LOGIN_URL to enable.")
+            st.button("Continue with GitHub", disabled=True, width="stretch", help="Set GITHUB_LOGIN_URL to enable.")
 
     tab_signin, tab_create, tab_self_service = st.tabs(
         ["Sign in", "Create account", "Self-service & Help"]
@@ -386,7 +386,7 @@ def render_login_gate():
             remember_login = st.checkbox("Remember login details on this device", value=bool(prefill_user))
             if login_mode == "Team":
                 st.caption("Demo team names: Oncology Team, Pathology Department.")
-            submitted = st.form_submit_button("Login", type="primary", use_container_width=True)
+            submitted = st.form_submit_button("Login", type="primary", width="stretch")
         if submitted:
             user, error = authenticate_registered_user(username, password, login_mode, team_name)
             is_demo = False
@@ -464,7 +464,7 @@ def render_login_gate():
             )
             if account_type == "Team member":
                 st.caption("Enter your exact team/workspace name.")
-            reg_submit = st.form_submit_button("Create account", type="primary", use_container_width=True)
+            reg_submit = st.form_submit_button("Create account", type="primary", width="stretch")
         if reg_submit:
             reg_username_clean = (reg_username or "").strip().lower()
             reg_email_clean = (reg_email or "").strip().lower()
@@ -532,7 +532,7 @@ def render_login_gate():
         with ss_forgot_user:
             with st.form("forgot_username_form", clear_on_submit=True):
                 fu_email = st.text_input("Account email")
-                fu_submit = st.form_submit_button("Send username reminder", use_container_width=True)
+                fu_submit = st.form_submit_button("Send username reminder", width="stretch")
             if fu_submit:
                 try:
                     from utils.backend_db import get_user_by_email
@@ -559,7 +559,7 @@ def render_login_gate():
         with ss_forgot_pw:
             with st.form("forgot_pw_form", clear_on_submit=True):
                 fp_email = st.text_input("Account email")
-                fp_submit = st.form_submit_button("Request reset token", use_container_width=True)
+                fp_submit = st.form_submit_button("Request reset token", width="stretch")
             if fp_submit:
                 try:
                     from utils.backend_db import issue_password_reset_token
@@ -598,7 +598,7 @@ def render_login_gate():
                 rp_token = st.text_input("Reset token", key="reset_token")
                 rp_new = st.text_input("New password", type="password", key="reset_new")
                 rp_new2 = st.text_input("Confirm new password", type="password", key="reset_new2")
-                rp_submit = st.form_submit_button("Reset password", use_container_width=True)
+                rp_submit = st.form_submit_button("Reset password", width="stretch")
             if rp_submit:
                 if rp_new != rp_new2:
                     st.error("Passwords do not match.")
@@ -618,7 +618,7 @@ def render_login_gate():
             with st.form("deactivate_account_form", clear_on_submit=True):
                 da_email = st.text_input("Account email")
                 da_password = st.text_input("Account password", type="password")
-                da_submit = st.form_submit_button("Deactivate my account", type="secondary", use_container_width=True)
+                da_submit = st.form_submit_button("Deactivate my account", type="secondary", width="stretch")
             if da_submit:
                 try:
                     from utils.backend_db import delete_user_account_by_email
