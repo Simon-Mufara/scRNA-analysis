@@ -5,6 +5,8 @@ import shutil
 import tempfile
 import numpy as np
 from anndata import AnnData
+import requests
+from urllib.parse import urlparse
 
 from core.preprocessing import load_h5ad_safe as _load_h5ad_safe
 from core.preprocessing import load_demo_dataset
@@ -63,6 +65,60 @@ def _apply_streamlit_limits(adata: AnnData) -> AnnData:
     return adata
 
 
+def _download_from_url(url: str, max_size_mb: int = MAX_UPLOAD_MB) -> tuple[str, str | None]:
+    """
+    Download file from URL and save to temporary file.
+    Returns (temp_file_path, error_message) tuple.
+    """
+    try:
+        parsed = urlparse(url)
+        if not parsed.scheme or not parsed.netloc:
+            return "", "Invalid URL format. Please provide a complete URL (e.g., https://example.com/file.h5ad)"
+
+        response = requests.head(url, timeout=10, allow_redirects=True)
+        if response.status_code != 200:
+            return "", f"HTTP {response.status_code}: Unable to access URL. Check if the link is valid and public."
+
+        content_length = response.headers.get('content-length')
+        if content_length:
+            size_mb = int(content_length) / (1024 ** 2)
+            if size_mb > max_size_mb:
+                return "", f"File too large: {size_mb:,.1f} MB exceeds {max_size_mb:,} MB limit."
+
+        # Get filename from URL
+        filename = parsed.path.split('/')[-1] or 'download'
+        if not filename.endswith(('.h5ad', '.loom')):
+            if content_length:
+                filename = f"{filename.split('.')[0]}.h5ad"
+            else:
+                filename = 'dataset.h5ad'
+
+        response = requests.get(url, timeout=30, stream=True)
+        response.raise_for_status()
+
+        suffix = filename.split('.')[-1]
+        if suffix not in ['h5ad', 'loom']:
+            suffix = 'h5ad'
+        suffix = f".{suffix}"
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix, dir=tempfile.gettempdir()) as tmp:
+            chunk_size = 128 * 1024 * 1024  # 128 MB chunks
+            for chunk in response.iter_content(chunk_size=chunk_size):
+                if chunk:
+                    tmp.write(chunk)
+            return tmp.name, None
+
+    except requests.exceptions.Timeout:
+        return "", "Download timeout. The server took too long to respond. Try again or use a faster internet connection."
+    except requests.exceptions.ConnectionError:
+        return "", "Connection error. Check if the URL is valid and you have internet access."
+    except requests.exceptions.HTTPError as e:
+        return "", f"HTTP error: {e}"
+    except Exception as e:
+        return "", f"Download failed: {str(e)}"
+
+
+
 st.set_page_config(page_title="Upload Data", layout="wide")
 inject_global_css()
 render_sidebar()
@@ -88,8 +144,8 @@ with img_col:
     </div>
     """, unsafe_allow_html=True)
 
-tab_upload, tab_path, tab_example = st.tabs([
-    "📤 Browser Upload (≤100 GB)", "📁 Server File Path (Linux only)", "🧪 Demo Dataset"
+tab_upload, tab_url, tab_path, tab_example = st.tabs([
+    "📤 Browser Upload (≤100 GB)", "🔗 From URL/Link", "📁 Server File Path (Linux only)", "🧪 Demo Dataset"
 ])
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -193,6 +249,76 @@ with tab_upload:
         st.session_state["loaded_file_size_mb"] = float(file_size_mb)
         st.session_state.setdefault("pipeline_status", {})["Upload"] = "done"
         st.success(f"✅ **{file.name}** loaded — {adata.n_obs:,} cells × {adata.n_vars:,} genes")
+
+# ──────────────────────────────────────────────────────────────────────────────
+with tab_url:
+    if is_demo_user:
+        st.warning("Demo profile: URL-based file upload is disabled. Create an account to upload your own datasets.")
+    st.markdown("""
+    <div style="background:linear-gradient(135deg,rgba(76,175,80,0.05),rgba(76,175,80,0.01));
+    border:1px dashed rgba(76,175,80,0.4);border-radius:14px;padding:20px;margin-bottom:16px;">
+        <b style="color:#4CAF50;">📥 Download from URL</b><br>
+        <span style="color:#8B949E;font-size:0.88rem;">
+        Provide a direct download link to your <code>.h5ad</code> or <code>.loom</code> file.
+        The file must be publicly accessible and support HTTP range requests.<br>
+        <b>Examples:</b> Figshare, Zenodo, GitHub raw content, or your own cloud storage links.
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    url_input = st.text_input(
+        "File URL",
+        placeholder="https://example.com/data/sample_dataset.h5ad",
+        help="Must be a direct download link to .h5ad or .loom file",
+        disabled=is_demo_user,
+    )
+
+    col_fmt2, col_btn2 = st.columns([2, 1])
+    url_timeout = col_fmt2.slider("Download timeout (seconds)", 10, 120, 30,
+                                   help="How long to wait for server response")
+
+    if col_btn2.button("⬇️ Download & Load", type="primary", key="download_url", disabled=is_demo_user):
+        if not url_input:
+            st.warning("Please enter a file URL.")
+        else:
+            st.info(f"🔍 Checking URL: {url_input[:60]}...")
+            with st.spinner("Downloading file..."):
+                tmp_path, error = _download_from_url(url_input)
+                if error:
+                    st.error(error)
+                    st.stop()
+
+                # Determine file format from URL or temp file
+                file_ext = url_input.split('.')[-1].lower()
+                if file_ext not in ['h5ad', 'loom']:
+                    file_ext = 'h5ad'
+
+                try:
+                    st.info("📦 Processing downloaded file...")
+                    with st.spinner("Loading dataset into memory..."):
+                        if file_ext == 'loom':
+                            adata = load_dataset_by_format(tmp_path, ".loom")
+                        else:
+                            adata, load_err = _load_local_dataset(tmp_path, ".h5ad")
+                            if load_err:
+                                st.error(load_err)
+                                st.stop()
+
+                        adata = _apply_streamlit_limits(adata)
+                        file_size_mb = os.path.getsize(tmp_path) / (1024 ** 2)
+                        st.session_state["adata"] = adata
+                        st.session_state["loaded_file_size_mb"] = float(file_size_mb)
+                        st.session_state.setdefault("pipeline_status", {})["Upload"] = "done"
+                        st.success(f"✅ Downloaded & loaded — {adata.n_obs:,} cells × {adata.n_vars:,} genes")
+                except MemoryError:
+                    st.error(
+                        "The dataset is too large to load fully into memory in this environment. "
+                        "Try a machine with more RAM, or reduce/filter the dataset before loading."
+                    )
+                except Exception as e:
+                    st.error(f"Failed to process downloaded file: {e}")
+                finally:
+                    _safe_unlink(tmp_path)
 
 # ──────────────────────────────────────────────────────────────────────────────
 with tab_path:
